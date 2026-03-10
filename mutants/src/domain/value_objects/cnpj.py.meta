@@ -1,0 +1,16 @@
+{
+    "exit_code_by_key": {
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_1": null,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_2": null,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_3": null,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_4": null,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_5": null,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_6": null,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_7": null,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_8": null,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_9": null
+    },
+    "durations_by_key": {},
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {}
+}

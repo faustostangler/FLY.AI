@@ -1,0 +1,14 @@
+{
+    "exit_code_by_key": {
+        "presentation.api.dependencies.x_get_company_repository__mutmut_1": null,
+        "presentation.api.dependencies.x_get_b3_scraper__mutmut_1": null,
+        "presentation.api.dependencies.x_get_b3_scraper__mutmut_2": null,
+        "presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_1": null,
+        "presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_2": null,
+        "presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_3": null,
+        "presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_4": null
+    },
+    "durations_by_key": {},
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {}
+}

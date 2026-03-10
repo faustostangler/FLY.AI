@@ -19,7 +19,7 @@ class PostgresCompanyRepository(CompanyRepository):
             cvm_code=entity.cvm_code,
             company_name=entity.company_name,
             trading_name=entity.trading_name,
-            cnpj=entity.cnpj,
+            cnpj=entity.cnpj.root if entity.cnpj else None,
             listing=entity.listing,
             sector=entity.sector,
             subsector=entity.subsector,
