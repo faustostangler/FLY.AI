@@ -1,0 +1,27 @@
+{
+  "name": "FLY.AI Python Dev Env",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.formatting.provider": "none",
+        "editor.formatOnSave": true,
+        "[python]": {
+            "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "python.testing.pytestEnabled": true
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker"
+      ]
+    }
+  },
+  "remoteUser": "vscode"
+}
