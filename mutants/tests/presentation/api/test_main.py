@@ -39,6 +39,7 @@ def test_health_check():
     assert response.json()["status"] == "ok"
 
 def test_trigger_companies_sync():
+    mock_use_case.reset_mock()
     response = client.post("/api/v1/sync/companies")
     assert response.status_code == 200
     assert response.json()["status"] == "accepted"

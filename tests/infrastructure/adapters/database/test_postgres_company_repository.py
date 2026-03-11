@@ -51,7 +51,7 @@ def test_get_by_ticker_success(repo, db_session, sample_company):
     # Assert
     assert fetched is not None
     assert fetched.cvm_code == "9512"
-    assert fetched.cnpj == "33000167000101"
+    assert fetched.cnpj.root == "33000167000101"
 
 def test_get_by_ticker_not_found(repo):
     fetched = repo.get_by_ticker("UNKNOWN")
