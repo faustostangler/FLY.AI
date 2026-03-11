@@ -150,3 +150,5 @@ data/
 # dev data
 *dom.
 
+# tests
+*.meta
