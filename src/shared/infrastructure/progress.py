@@ -13,7 +13,7 @@ class ProgressReporter:
     def _format_seconds(self, seconds: float) -> str:
         hours, remainder = divmod(int(seconds), 3600)
         minutes, seconds_int = divmod(remainder, 60)
-        return f"{int(hours)}h {int(minutes):02}m {int(seconds_int):02}s"
+        return f"{int(hours)}h{int(minutes):02}m{int(seconds_int):02}s"
 
     def get_formatted_progress(self, current_index: int, extra_info: List[Any] = None) -> str:
         """
@@ -31,7 +31,7 @@ class ProgressReporter:
         
         progress_str = (
             f"{percentage:.2%} ({completed}+{remaining}), "
-            f"{avg_time:.4f}s per item, "
+            f"{avg_time:.4f}s/item, "
             f"{self._format_seconds(total_estimated)} = "
             f"{self._format_seconds(elapsed)} + "
             f"{self._format_seconds(remaining_time)}"

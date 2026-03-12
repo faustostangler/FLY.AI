@@ -13,7 +13,8 @@ os.makedirs(settings.app.log_dir, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="%(asctime)s [%(levelname)s]: %(message)s",
     handlers=[
         logging.FileHandler(f"{settings.app.log_dir}/{settings.app.log_name}"),
         logging.StreamHandler()

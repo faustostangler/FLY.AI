@@ -83,7 +83,7 @@ class SyncB3CompaniesUseCase:
                     logger.warning(f"Skipping invalid entry: {ticker} (CVM: {cvm_code})")
                     continue
                     
-                logger.info(reporter.get_formatted_progress(index, ["Processing", ticker]))
+                logger.info(reporter.get_formatted_progress(index, [ticker]))
                 
                 try:
                     # 2. Detail fetch
