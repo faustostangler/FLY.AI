@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from starlette.responses import Response
 from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.database.connection import engine
 from companies.infrastructure.adapters.database.models import Base
@@ -32,10 +34,64 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app.title,
-    description="SOTA Finance Data Platform using DDD and Hexagonal Architecture",
+    description=settings.app.description,
     version=settings.app.version,
     lifespan=lifespan
 )
+
+# --- SOTA Observability Middleware (Golden Signals) ---
+@app.middleware("http")
+async def prometheus_middleware(request: Request, call_next):
+    # Traffic & Latency Logic
+    method = request.method
+    path = request.url.path
+    
+    # Start timer
+    start_time = time.perf_counter()
+    
+    try:
+        response = await call_next(request)
+        duration = time.perf_counter() - start_time
+        
+        # Labels for labels
+        status_code = str(response.status_code)
+        
+        # 1. LATENCY
+        metrics.http_request_duration_seconds.labels(method=method, endpoint=path).observe(duration)
+        
+        # 2. TRAFFIC
+        metrics.http_requests_total.labels(method=method, endpoint=path, status=status_code).inc()
+
+        # 4. NETWORK (Outbound)
+        content_length = response.headers.get("content-length")
+        if content_length:
+            resp_size = int(content_length)
+            metrics.http_response_size_bytes.labels(method=method, endpoint=path).observe(resp_size)
+            metrics.network_transmit_bytes_total.labels(direction="outbound", context="api").inc(resp_size)
+        
+        # 3. ERRORS (Non-2xx/3xx)
+        if response.status_code >= 400:
+            metrics.http_requests_failed_total.labels(
+                method=method, 
+                endpoint=path, 
+                error_type=status_code
+            ).inc()
+            
+        return response
+        
+    except Exception as e:
+        # Capture unexpected crashes as Errors
+        metrics.http_requests_failed_total.labels(
+            method=method, 
+            endpoint=path, 
+            error_type=type(e).__name__
+        ).inc()
+        raise e
+
+@app.get("/metrics")
+def metrics_endpoint():
+    """Exposes Prometheus metrics for scraping."""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 @app.get("/health")
 def health_check():

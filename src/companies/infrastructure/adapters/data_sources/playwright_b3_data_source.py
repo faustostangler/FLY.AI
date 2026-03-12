@@ -83,10 +83,18 @@ class PlaywrightB3DataSource(B3DataSource):
                         "X-DtReferer": self.homepage_url
                     }
                 )
+                if response.status == 429:
+                    metrics.b3_rate_limit_hits.inc()
+                    raise Exception(f"Rate limited by B3 (429) on initial fetch. Payload: {payload}")
+                
                 if not response.ok:
-                    raise Exception(f"Failed to fetch page {page_num}: {response.status}")
+                    raise Exception(f"Failed to fetch initial companies page {page_num}: {response.status}")
 
-                data = await response.json()
+                body = await response.body()
+                payload_size = len(body)
+                metrics.network_transmit_bytes_total.labels(direction="inbound", context="b3_initial").inc(payload_size)
+
+                data = json.loads(body)
                 if page_num == 1:
                     total_pages = data.get("page", {}).get("totalPages", 1)
 
@@ -113,9 +121,18 @@ class PlaywrightB3DataSource(B3DataSource):
                     "X-DtReferer": self.homepage_url
                 }
             )
+            if response.status == 429:
+                metrics.b3_rate_limit_hits.inc()
+                raise Exception(f"Rate limited by B3 (429) on details fetch for {cvm_code}.")
+
             if not response.ok:
                 raise Exception(f"Failed to fetch details for {cvm_code}: {response.status}")
-            return await response.json()
+            
+            body = await response.body()
+            payload_size = len(body)
+            metrics.network_transmit_bytes_total.labels(direction="inbound", context="b3_detail").inc(payload_size)
+            
+            return json.loads(body)
         finally:
             if is_temp:
                 await context.browser.close()

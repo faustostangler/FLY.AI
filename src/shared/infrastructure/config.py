@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # 1. Create subgroups inheriting from BaseModel (not BaseSettings)
 class AppSettings(BaseModel):
     title: str = "FLY.AI Finance Data"
+    description: str = "SOTA Finance Data Platform using DDD and Hexagonal Architecture"
     version: str = "0.2.0"
     debug: bool = False
     log_dir: str = "logs"
@@ -37,6 +38,7 @@ class B3Settings(BaseModel):
         " EM LIQUIDACAO EXTRAJUDICIAL",
         " EMPRESA FALIDA",
     ]
+    max_concurrency: int = 50
 
 # 2. The main class brings everything together
 class Settings(BaseSettings):

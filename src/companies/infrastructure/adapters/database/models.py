@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -25,9 +25,9 @@ class CompanyModel(Base):
     describle_category_bvmf = Column(String)
     
     # Dates
-    date_listing = Column(String)
-    last_date = Column(String)
-    date_quotation = Column(String)
+    date_listing = Column(DateTime)
+    last_date = Column(DateTime)
+    date_quotation = Column(DateTime)
     
     # Infrastructure / Legal
     website = Column(String)
@@ -41,6 +41,6 @@ class CompanyModel(Base):
     ticker_codes = Column(String)
     isin_codes = Column(String)
     type_bdr = Column(String)
-    has_quotation = Column(String)
-    has_emissions = Column(String)
-    has_bdr = Column(String)
+    has_quotation = Column(Boolean)
+    has_emissions = Column(Boolean)
+    has_bdr = Column(Boolean)

@@ -1,4 +1,5 @@
 from typing import List, Optional
+import json
 from sqlalchemy.orm import Session
 from companies.domain.entities.company import Company
 from companies.domain.ports.company_repository import CompanyRepository
@@ -36,8 +37,8 @@ class PostgresCompanyRepository(CompanyRepository):
             status=entity.status,
             type=entity.type,
             market_indicator=entity.market_indicator,
-            ticker_codes=entity.ticker_codes,
-            isin_codes=entity.isin_codes,
+            ticker_codes=json.dumps(entity.ticker_codes) if entity.ticker_codes else "[]",
+            isin_codes=json.dumps(entity.isin_codes) if entity.isin_codes else "[]",
             type_bdr=entity.type_bdr,
             has_quotation=entity.has_quotation,
             has_emissions=entity.has_emissions,
@@ -68,7 +69,7 @@ class PostgresCompanyRepository(CompanyRepository):
             status=model.status,
             type=model.type,
             market_indicator=model.market_indicator,
-            ticker_codes=model.ticker_codes,
+            ticker_codes=model.ticker_codes, # Entity validator handles JSON string to List conversion
             isin_codes=model.isin_codes,
             type_bdr=model.type_bdr,
             has_quotation=model.has_quotation,

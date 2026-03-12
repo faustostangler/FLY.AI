@@ -15,6 +15,8 @@ dependencies = [
     "numpy>=2.4.3",
     "pydantic-settings>=2.13.1",
     "unidecode>=1.4.0",
+    "prometheus-client>=0.24.1",
+    "pact-python>=3.2.1",
 ]
 
 [project.optional-dependencies]

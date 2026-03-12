@@ -1,5 +1,6 @@
-from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Any
+from datetime import datetime
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 import re
 from companies.domain.value_objects.cnpj import CNPJ
 from shared.infrastructure.utils.text import TextCleaner
@@ -22,9 +23,9 @@ class Company(BaseModel):
     describle_category_bvmf: Optional[str] = None
     
     # Optional Dates
-    date_listing: Optional[str] = None
-    last_date: Optional[str] = None
-    date_quotation: Optional[str] = None
+    date_listing: Optional[datetime] = None
+    last_date: Optional[datetime] = None
+    date_quotation: Optional[datetime] = None
     
     # Optional Infrastructure / Legal
     website: Optional[str] = None
@@ -35,22 +36,39 @@ class Company(BaseModel):
     market_indicator: Optional[str] = None
     
     # Securities Identifiers
-    ticker_codes: Optional[str] = None # JSON dumped list in legacy, but maybe we could map as list in new DDD
-    isin_codes: Optional[str] = None   # Same
+    ticker_codes: List[str] = Field(default_factory=list, description="List of all ticker codes associated with the company")
+    isin_codes: List[str] = Field(default_factory=list, description="List of all ISIN codes associated with the company")
     type_bdr: Optional[str] = None
-    has_quotation: Optional[str] = None
-    has_emissions: Optional[str] = None
-    has_bdr: Optional[str] = None
+    has_quotation: Optional[bool] = None
+    has_emissions: Optional[bool] = None
+    has_bdr: Optional[bool] = None
 
     @field_validator(
-        "company_name", "trading_name", "sector", "subsector", 
-        "segment", "activity", "listing", "status", "type",
+        "ticker", "company_name", "trading_name", "sector", "subsector", 
+        "segment", "segment_eng", "activity", "listing", "status", "type",
+        "registrar", "main_registrar", "describle_category_bvmf",
         mode="before"
     )
     @classmethod
     def clean_text_fields(cls, v: Optional[str]) -> Optional[str]:
         """Automatically cleans text fields during entity creation."""
         return TextCleaner.clean(v)
+    
+    @field_validator("ticker_codes", "isin_codes", mode="before")
+    @classmethod
+    def validate_security_codes(cls, v: Any) -> List[str]:
+        """Ensures security codes are handled as lists, even if passed as JSON strings."""
+        if isinstance(v, str):
+            try:
+                import json
+                data = json.loads(v)
+                if isinstance(data, list):
+                    return [str(item) for item in data]
+            except (json.JSONDecodeError, TypeError):
+                pass
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        return []
 
     @field_validator("cvm_code")
     def validate_cvm_code_is_numeric(cls, v: str) -> str:
@@ -68,3 +86,21 @@ class Company(BaseModel):
         if not re.match(r"^[A-Z0-9]{2,12}$", v):
             raise ValueError(f"Ticker '{v}' must be 2-12 alphanumeric characters (SOTA Rule)")
         return v
+
+    @field_validator("has_quotation", "has_emissions", "has_bdr", mode="before")
+    @classmethod
+    def validate_bool_fields(cls, v: Any) -> Optional[bool]:
+        """Resiliently converts strings/numbers to boolean for B3 compatibility."""
+        if v is None:
+            return None
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            v_lower = v.lower().strip()
+            if v_lower in ("true", "1", "yes", "s", "y", "ativo"):
+                return True
+            if v_lower in ("false", "0", "no", "n", "inativo"):
+                return False
+        if isinstance(v, (int, float)):
+            return bool(v)
+        return None
