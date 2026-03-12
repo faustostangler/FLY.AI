@@ -1,53 +1,20 @@
 {
     "tests_by_mangled_function_name": {
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format": [
-            "tests/domain/value_objects/test_cnpj.py::test_cnpj_valid",
-            "tests/domain/test_company.py::test_company_creation_success"
-        ],
-        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1__init__": [
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success",
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success",
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_not_found",
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_company_success"
-        ],
-        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1_to_model": [
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success",
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success",
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_company_success"
-        ],
-        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1save": [
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success",
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_company_success"
-        ],
-        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1get_by_ticker": [
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success",
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_not_found"
-        ],
-        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1_to_entity": [
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success",
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success"
-        ],
-        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1get_all": [
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success"
-        ],
-        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1save_batch": [
-            "tests/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success"
-        ],
-        "infrastructure.adapters.scrapers.playwright_b3_scraper.x\u01c1PlaywrightB3Scraper\u01c1fetch_initial_companies": [
-            "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_fetch_initial_companies_success"
-        ],
-        "infrastructure.adapters.scrapers.playwright_b3_scraper.x\u01c1PlaywrightB3Scraper\u01c1__init__": [
-            "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_create_token",
-            "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_fetch_company_details_success",
-            "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_fetch_initial_companies_success"
-        ],
-        "infrastructure.adapters.scrapers.playwright_b3_scraper.x\u01c1PlaywrightB3Scraper\u01c1_create_token": [
-            "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_create_token",
-            "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_fetch_company_details_success",
-            "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_fetch_initial_companies_success"
-        ],
-        "infrastructure.adapters.scrapers.playwright_b3_scraper.x\u01c1PlaywrightB3Scraper\u01c1fetch_company_details": [
-            "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_fetch_company_details_success"
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format": [],
+        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1__init__": [],
+        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1_to_model": [],
+        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1save": [],
+        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1get_by_ticker": [],
+        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1_to_entity": [],
+        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1get_all": [],
+        "infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1save_batch": [],
+        "infrastructure.adapters.scrapers.playwright_b3_scraper.x\u01c1PlaywrightB3Scraper\u01c1fetch_initial_companies": [],
+        "infrastructure.adapters.scrapers.playwright_b3_scraper.x\u01c1PlaywrightB3Scraper\u01c1__init__": [],
+        "infrastructure.adapters.scrapers.playwright_b3_scraper.x\u01c1PlaywrightB3Scraper\u01c1_create_token": [],
+        "infrastructure.adapters.scrapers.playwright_b3_scraper.x\u01c1PlaywrightB3Scraper\u01c1fetch_company_details": [],
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format": [
+            "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_valid",
+            "tests/companies/domain/entities/test_company.py::test_company_creation_success"
         ]
     },
     "duration_by_test": {
@@ -68,7 +35,16 @@
         "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_fetch_company_details_success": 0.00469617398630362,
         "tests/infrastructure/adapters/scrapers/test_playwright_b3_scraper.py::test_create_token": 0.0004397430020617321,
         "tests/presentation/api/test_main.py::test_health_check": 0.0036976740084355697,
-        "tests/presentation/api/test_main.py::test_trigger_companies_sync": 0.0028917939926031977
+        "tests/presentation/api/test_main.py::test_trigger_companies_sync": 0.0028917939926031977,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_valid": 0.0020668799988925457,
+        "tests/companies/domain/entities/test_company.py::test_company_invalid_ticker": 0.0013136719935573637,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_invalid_length": 0.0013395390124060214,
+        "tests/companies/domain/entities/test_company.py::test_company_invalid_cvm_code": 0.0017216730047948658,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_valid_unformatted": 0.0012533320114016533,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_invalid_check_digits": 0.000871252006618306,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_empty": 0.0007707710028626025,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_invalid_all_same_digits": 0.0009187589748762548,
+        "tests/companies/domain/entities/test_company.py::test_company_creation_success": 0.0012346119910944253
     },
     "stats_time": 1.066322422
 }

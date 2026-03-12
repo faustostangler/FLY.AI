@@ -20,7 +20,7 @@ app = FastAPI(
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "message": "Modular Monolith Core operational"}
+    return {"status": "ok", "message": "FLY.AI Core operational"}
 
 # Register Domain Routers
 app.include_router(companies_router, prefix="/api/v1")
