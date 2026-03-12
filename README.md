@@ -31,6 +31,9 @@ uv sync
 ```bash
 uv run pytest
 ```
+```bash
+uv run mutmut run
+```
 
 ### Running with Docker (SOTA)
 ```bash

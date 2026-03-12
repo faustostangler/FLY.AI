@@ -11,6 +11,8 @@ dependencies = [
     "fastapi>=0.100.0",
     "psycopg2-binary>=2.9.11",
     "uvicorn[standard]>=0.41.0",
+    "pandas>=3.0.1",
+    "numpy>=2.4.3",
 ]
 
 [project.optional-dependencies]
