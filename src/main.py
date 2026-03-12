@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from src.companies.presentation.api.routes import router as companies_router
-from src.shared.infrastructure.database.connection import engine
-from src.companies.infrastructure.adapters.database.models import Base
+from companies.presentation.api.routes import router as companies_router
+from shared.infrastructure.database.connection import engine
+from companies.infrastructure.adapters.database.models import Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

@@ -2,13 +2,13 @@ import pytest
 import json
 import base64
 from unittest.mock import AsyncMock, patch, MagicMock
-from src.companies.infrastructure.adapters.data_sources.playwright_b3_data_source import PlaywrightB3DataSource
+from companies.infrastructure.adapters.data_sources.playwright_b3_data_source import PlaywrightB3DataSource
 
 
 @pytest.fixture
 def mock_playwright():
     """Mocks the playwright.async_api"""
-    with patch("src.companies.infrastructure.adapters.data_sources.playwright_b3_data_source.async_playwright") as mock_pw:
+    with patch("companies.infrastructure.adapters.data_sources.playwright_b3_data_source.async_playwright") as mock_pw:
         mock_context_manager = AsyncMock()
         mock_pw.return_value = mock_context_manager
 

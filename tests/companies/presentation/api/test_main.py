@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.main import app
-from src.companies.presentation.api.dependencies import get_sync_b3_companies_use_case
-from src.shared.infrastructure.database.connection import get_db
-from src.companies.infrastructure.adapters.database.models import Base
+from main import app
+from companies.presentation.api.dependencies import get_sync_b3_companies_use_case
+from shared.infrastructure.database.connection import get_db
+from companies.infrastructure.adapters.database.models import Base
 
 # Setup in-memory SQLite for testing to avoid hitting Postgres layer during fast unit tests
 engine_test = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})

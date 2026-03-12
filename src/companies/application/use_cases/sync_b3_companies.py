@@ -3,9 +3,9 @@ import logging
 from typing import Dict, Any, List
 from pydantic import ValidationError
 
-from src.companies.domain.entities.company import Company
-from src.companies.domain.ports.b3_data_source import B3DataSource
-from src.companies.domain.ports.company_repository import CompanyRepository
+from companies.domain.entities.company import Company
+from companies.domain.ports.b3_data_source import B3DataSource
+from companies.domain.ports.company_repository import CompanyRepository
 
 logger = logging.getLogger(__name__)
 

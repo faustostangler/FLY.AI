@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from src.companies.domain.entities.company import Company
+from companies.domain.entities.company import Company
 
 def test_company_creation_success():
     company = Company(

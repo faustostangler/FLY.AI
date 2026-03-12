@@ -1,9 +1,9 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.companies.domain.entities.company import Company
-from src.companies.infrastructure.adapters.database.models import Base, CompanyModel
-from src.companies.infrastructure.adapters.database.postgres_company_repository import PostgresCompanyRepository
+from companies.domain.entities.company import Company
+from companies.infrastructure.adapters.database.models import Base, CompanyModel
+from companies.infrastructure.adapters.database.postgres_company_repository import PostgresCompanyRepository
 
 # Setup in-memory SQLite for testing adapter logic
 engine = create_engine("sqlite:///:memory:")

@@ -1,9 +1,9 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
-from src.shared.infrastructure.database.connection import get_db
-from src.companies.infrastructure.adapters.database.postgres_company_repository import PostgresCompanyRepository
-from src.companies.infrastructure.adapters.data_sources.playwright_b3_data_source import PlaywrightB3DataSource
-from src.companies.application.use_cases.sync_b3_companies import SyncB3CompaniesUseCase
+from shared.infrastructure.database.connection import get_db
+from companies.infrastructure.adapters.database.postgres_company_repository import PostgresCompanyRepository
+from companies.infrastructure.adapters.data_sources.playwright_b3_data_source import PlaywrightB3DataSource
+from companies.application.use_cases.sync_b3_companies import SyncB3CompaniesUseCase
 
 def get_company_repository(db: Session = Depends(get_db)) -> PostgresCompanyRepository:
     """Dependency Provider for CompanyRepository Port"""

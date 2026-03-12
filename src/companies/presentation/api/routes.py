@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, BackgroundTasks
-from src.companies.application.use_cases.sync_b3_companies import SyncB3CompaniesUseCase
-from src.companies.presentation.api.dependencies import get_sync_b3_companies_use_case
+from companies.application.use_cases.sync_b3_companies import SyncB3CompaniesUseCase
+from companies.presentation.api.dependencies import get_sync_b3_companies_use_case
 
 router = APIRouter(prefix="/companies", tags=["Companies"])
 

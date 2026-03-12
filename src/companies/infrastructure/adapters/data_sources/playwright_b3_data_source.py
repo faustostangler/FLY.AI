@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 from playwright.async_api import async_playwright, Page, BrowserContext
-from src.companies.domain.ports.b3_data_source import B3DataSource
+from companies.domain.ports.b3_data_source import B3DataSource
 import json
 import base64
 

@@ -1,7 +1,7 @@
 from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator
 import re
-from src.companies.domain.value_objects.cnpj import CNPJ
+from companies.domain.value_objects.cnpj import CNPJ
 
 class Company(BaseModel):
     # Core Identification

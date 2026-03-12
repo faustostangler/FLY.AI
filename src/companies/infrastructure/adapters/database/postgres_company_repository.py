@@ -1,8 +1,8 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from src.companies.domain.entities.company import Company
-from src.companies.domain.ports.company_repository import CompanyRepository
-from src.companies.infrastructure.adapters.database.models import CompanyModel
+from companies.domain.entities.company import Company
+from companies.domain.ports.company_repository import CompanyRepository
+from companies.infrastructure.adapters.database.models import CompanyModel
 
 class PostgresCompanyRepository(CompanyRepository):
     """

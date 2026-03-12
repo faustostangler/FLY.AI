@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from src.companies.domain.value_objects.cnpj import CNPJ
+from companies.domain.value_objects.cnpj import CNPJ
 
 def test_cnpj_valid():
     # Apple Computer Brasil Ltda
