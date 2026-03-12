@@ -14,8 +14,8 @@ async def lifespan(app: FastAPI):
     # clean up here if needed
 
 app = FastAPI(
-    title="FLY.AI B3 Scraper API",
-    description="Clean Architecture implementation of B3 Market Scraper",
+    title="FLY.AI B3 Data Source API",
+    description="Clean Architecture implementation of B3 Market Data Source",
     version="0.1.0",
     lifespan=lifespan
 )
@@ -32,7 +32,7 @@ async def trigger_companies_sync(
     """
     Triggers the background synchronization of B3 Companies.
     """
-    # Run the playwright scraping and DB operations in the background
+    # Run the data source fetch and DB operations in the background
     background_tasks.add_task(use_case.execute)
     
     return {

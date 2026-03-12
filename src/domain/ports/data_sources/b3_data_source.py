@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
-class B3ScraperPort(ABC):
+
+class B3DataSource(ABC):
     """
-    Port for the B3 scraping operations.
+    Port (abstract contract) for B3 data retrieval operations.
+    Defines the interface that any infrastructure adapter must implement
+    to provide company data from B3.
     """
 
     @abstractmethod

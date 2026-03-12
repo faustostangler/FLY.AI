@@ -11,15 +11,15 @@
         "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_9": 1
     },
     "durations_by_key": {
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_2": 0.082855,
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_1": 0.064399,
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_3": 0.082302,
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_4": 0.090068,
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_5": 0.066527,
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_6": 0.068672,
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_7": 0.082759,
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_9": 0.08409,
-        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_8": 0.081804
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_2": 0.096789,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_1": 0.095541,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_3": 0.10001,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_4": 0.103564,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_5": 0.110678,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_6": 0.112728,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_7": 0.104124,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_9": 0.100042,
+        "domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_8": 0.099301
     },
     "type_check_error_by_key": {},
     "estimated_durations_by_key": {

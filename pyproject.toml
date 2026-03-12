@@ -1,7 +1,7 @@
 [project]
 name = "fly-ai"
 version = "0.1.0"
-description = "FLY.AI B3 Scraper with DDD and Clean Architecture"
+description = "FLY.AI B3 Data Source with DDD and Clean Architecture"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

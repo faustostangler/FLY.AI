@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 from pydantic import ValidationError
 
 from domain.entities.company import Company
-from domain.ports.scrapers.b3_scraper_port import B3ScraperPort
+from domain.ports.data_sources.b3_data_source import B3DataSource
 from domain.ports.repositories.company_repository import CompanyRepository
 
 logger = logging.getLogger(__name__)
@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 class SyncB3CompaniesUseCase:
     """
     Application Use Case to synchronize the list of companies from B3
-    into the database using the scraper and repository ports.
+    into the database using the data source and repository ports.
     """
-    def __init__(self, scraper: B3ScraperPort, repository: CompanyRepository):
-        self._scraper = scraper
+    def __init__(self, data_source: B3DataSource, repository: CompanyRepository):
+        self._data_source = data_source
         self._repository = repository
         
     def _map_b3_payload_to_entity(self, basic_info: Dict[str, Any], detailed_info: Dict[str, Any]) -> Company:
@@ -68,7 +68,7 @@ class SyncB3CompaniesUseCase:
         logger.info("Starting B3 Companies Synchronization")
         
         # 1. Fetch the raw initial list
-        initial_companies = await self._scraper.fetch_initial_companies()
+        initial_companies = await self._data_source.fetch_initial_companies()
         
         entities_to_save: List[Company] = []
         
@@ -84,7 +84,7 @@ class SyncB3CompaniesUseCase:
             
             try:
                 # 2. Detail fetch
-                details = await self._scraper.fetch_company_details(cvm_code)
+                details = await self._data_source.fetch_company_details(cvm_code)
                 
                 # 3. Domain Mapping 
                 # Merging dictionaries strategy isn't needed here if we pass both
