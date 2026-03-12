@@ -1,11 +1,13 @@
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# 1. Criamos os subgrupos herdando de BaseModel (não BaseSettings)
+# 1. Create subgroups inheriting from BaseModel (not BaseSettings)
 class AppSettings(BaseModel):
     title: str = "FLY.AI Finance Data"
     version: str = "0.2.0"
     debug: bool = False
+    log_dir: str = "logs"
+    log_name: str = "app.log"
 
 class DatabaseSettings(BaseModel):
     url: str = Field(
@@ -21,11 +23,12 @@ class RedisSettings(BaseModel):
 
 class B3Settings(BaseModel):
     homepage_url: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesPage/?language=pt-br"
-    initial_companies_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyDataCall/GetInitialCompanies/"
-    detail_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyDataCall/GetDetail/"
-    financial_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyDataCall/GetListedFinancial/"
+    initial_companies_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetInitialCompanies/"
+    detail_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetDetail/"
+    financial_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedFinancial/"
+    headless: bool = False # True
 
-# 2. A classe principal junta tudo
+# 2. The main class brings everything together
 class Settings(BaseSettings):
     app: AppSettings = AppSettings()
     db: DatabaseSettings = DatabaseSettings()
@@ -35,10 +38,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        # O Pulo do Gato: Diz ao Pydantic como ler o arquivo .env
+        # The clever trick: Tells Pydantic how to read nested variables from the .env file
         env_nested_delimiter="__", 
         case_sensitive=False
     )
 
-# Instância única exportada para o projeto
+# Single instance (Singleton) exported for the project
 settings = Settings()

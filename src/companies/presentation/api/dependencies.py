@@ -10,8 +10,8 @@ def get_company_repository(db: Session = Depends(get_db)) -> PostgresCompanyRepo
     return PostgresCompanyRepository(session=db)
 
 def get_b3_data_source() -> PlaywrightB3DataSource:
-    """Dependency Provider for B3DataSource Port. Uses headless by default."""
-    return PlaywrightB3DataSource(headless=True)
+    """Dependency Provider for B3DataSource Port. Default headless mode from settings."""
+    return PlaywrightB3DataSource()
 
 def get_sync_b3_companies_use_case(
     data_source: PlaywrightB3DataSource = Depends(get_b3_data_source),

@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from companies.domain.entities.company import Company
 from companies.domain.ports.b3_data_source import B3DataSource
 from companies.domain.ports.company_repository import CompanyRepository
+from shared.infrastructure.progress import ProgressReporter
 
 logger = logging.getLogger(__name__)
 
@@ -67,35 +68,36 @@ class SyncB3CompaniesUseCase:
         """
         logger.info("Starting B3 Companies Synchronization")
         
-        # 1. Fetch the raw initial list
-        initial_companies = await self._data_source.fetch_initial_companies()
-        
-        entities_to_save: List[Company] = []
-        
-        for index, raw_company in enumerate(initial_companies):
-            ticker = raw_company.get("issuingCompany")
-            cvm_code = str(raw_company.get("codeCVM"))
+        async with self._data_source:
+            # 1. Fetch the raw initial list
+            initial_companies = await self._data_source.fetch_initial_companies()
             
-            if not ticker or not cvm_code.isdigit():
-                logger.warning(f"Skipping invalid entry: {ticker} (CVM: {cvm_code})")
-                continue
-                
-            logger.info(f"Processing {index + 1}/{len(initial_companies)}: {ticker}")
+            reporter = ProgressReporter(total=len(initial_companies))
+            entities_to_save: List[Company] = []
             
-            try:
-                # 2. Detail fetch
-                details = await self._data_source.fetch_company_details(cvm_code)
+            for index, raw_company in enumerate(initial_companies):
+                ticker = raw_company.get("issuingCompany")
+                cvm_code = str(raw_company.get("codeCVM"))
                 
-                # 3. Domain Mapping 
-                # Merging dictionaries strategy isn't needed here if we pass both
-                company_entity = self._map_b3_payload_to_entity(raw_company, details)
-                entities_to_save.append(company_entity)
-            except Exception as e:
-                logger.error(f"Failed to process {ticker}: {e}")
+                if not ticker or not cvm_code.isdigit():
+                    logger.warning(f"Skipping invalid entry: {ticker} (CVM: {cvm_code})")
+                    continue
+                    
+                logger.info(reporter.get_formatted_progress(index, ["Processing", ticker]))
                 
-        # 4. Persistence
-        if entities_to_save:
-            logger.info(f"Saving {len(entities_to_save)} companies to the repository.")
-            self._repository.save_batch(entities_to_save)
+                try:
+                    # 2. Detail fetch
+                    details = await self._data_source.fetch_company_details(cvm_code)
+                    
+                    # 3. Domain Mapping 
+                    company_entity = self._map_b3_payload_to_entity(raw_company, details)
+                    entities_to_save.append(company_entity)
+                except Exception as e:
+                    logger.error(f"Failed to process {ticker}: {e}")
+                    
+            # 4. Persistence
+            if entities_to_save:
+                logger.info(f"Saving {len(entities_to_save)} companies to the repository.")
+                self._repository.save_batch(entities_to_save)
         
         logger.info("Synchronization completed successfully.")

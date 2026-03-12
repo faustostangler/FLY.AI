@@ -49,6 +49,7 @@ class Company(BaseModel):
     
     @field_validator("ticker")
     def validate_ticker_format(cls, v: str) -> str:
-        if not re.match(r"^[A-Z]{4}[0-9A-Z]{0,6}$", v):
-            raise ValueError("Ticker must start with 4 letters followed by numbers/letters")
+        # Relaxed to allow numbers in the first 4 chars (e.g., AZO0, B3SA3)
+        if not re.match(r"^[A-Z0-9]{4,10}$", v):
+            raise ValueError("Ticker must be 4-10 alphanumeric characters")
         return v

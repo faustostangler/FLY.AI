@@ -4,7 +4,23 @@ from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.database.connection import engine
 from companies.infrastructure.adapters.database.models import Base
 
+import logging
+import os
 from shared.infrastructure.config import settings
+
+# --- Logic for Logging SOTA Configuration ---
+os.makedirs(settings.app.log_dir, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler(f"{settings.app.log_dir}/{settings.app.log_name}"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+# --------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
