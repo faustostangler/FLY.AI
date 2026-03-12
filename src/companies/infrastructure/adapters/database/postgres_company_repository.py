@@ -77,15 +77,56 @@ class PostgresCompanyRepository(CompanyRepository):
         )
 
     def save(self, company: Company) -> None:
-        model = self._to_model(company)
-        # Using merge instead of add to gracefully handle upserts if primary key or unique exists
-        self._session.merge(model)
+        """Saves or updates a single company using UPSERT."""
+        from sqlalchemy.dialects.postgresql import insert
+        
+        data = self._to_model(company).__dict__
+        data.pop('_sa_instance_state', None)
+        data.pop('id', None)
+        
+        stmt = insert(CompanyModel).values(data)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=['ticker'],
+            set_={k: v for k, v in data.items() if k != 'ticker'}
+        )
+        
+        self._session.execute(stmt)
         self._session.commit()
 
     def save_batch(self, companies: List[Company]) -> None:
-        models = [self._to_model(c) for c in companies]
-        # In SQLAlchemy 2.0, bulk save is handled best with add_all and commit
-        self._session.add_all(models) 
+        """
+        Saves or updates companies in batch using PostgreSQL native UPSERT.
+        This prevents 'Duplicate Key' errors and improves performance.
+        """
+        if not companies:
+            return
+            
+        from sqlalchemy.dialects.postgresql import insert
+        
+        # Prepare data for bulk insert
+        data_list = []
+        for company in companies:
+            data = self._to_model(company).__dict__
+            data.pop('_sa_instance_state', None)
+            data.pop('id', None)
+            data_list.append(data)
+            
+        # Standard PostgreSQL UPSERT logic
+        stmt = insert(CompanyModel).values(data_list)
+        
+        # Define what to update on conflict
+        update_cols = {
+            c.name: stmt.excluded[c.name] 
+            for c in CompanyModel.__table__.columns 
+            if c.name not in ['id', 'ticker']
+        }
+        
+        stmt = stmt.on_conflict_do_update(
+            index_elements=['ticker'],
+            set_=update_cols
+        )
+        
+        self._session.execute(stmt)
         self._session.commit()
 
     def get_by_ticker(self, ticker: str) -> Optional[Company]:

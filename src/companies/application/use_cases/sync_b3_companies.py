@@ -97,7 +97,10 @@ class SyncB3CompaniesUseCase:
                     
             # 4. Persistence
             if entities_to_save:
-                logger.info(f"Saving {len(entities_to_save)} companies to the repository.")
-                self._repository.save_batch(entities_to_save)
+                # Deduplicate by ticker to prevent conflicts within the same batch
+                # and avoid database unique constraint violations.
+                unique_entities = {e.ticker: e for e in entities_to_save}.values()
+                logger.info(f"Saving {len(unique_entities)} unique companies to the repository.")
+                self._repository.save_batch(list(unique_entities))
         
         logger.info("Synchronization completed successfully.")

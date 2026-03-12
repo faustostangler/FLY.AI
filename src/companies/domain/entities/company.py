@@ -60,7 +60,11 @@ class Company(BaseModel):
     
     @field_validator("ticker")
     def validate_ticker_format(cls, v: str) -> str:
-        # Relaxed to allow numbers in the first 4 chars (e.g., AZO0, B3SA3)
-        if not re.match(r"^[A-Z0-9]{4,10}$", v):
-            raise ValueError("Ticker must be 4-10 alphanumeric characters")
+        """
+        SOTA Ticker Validation: 
+        Accepts any alphanumeric string between 2 and 12 chars to be extremely safe 
+        with B3's evolving ticker formats (including indices, BDRs, etc).
+        """
+        if not re.match(r"^[A-Z0-9]{2,12}$", v):
+            raise ValueError(f"Ticker '{v}' must be 2-12 alphanumeric characters (SOTA Rule)")
         return v
