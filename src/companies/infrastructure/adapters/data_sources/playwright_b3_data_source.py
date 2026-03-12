@@ -1,15 +1,15 @@
 from typing import List, Dict, Any
-from playwright.async_api import async_playwright, Page, BrowserContext
-from companies.domain.ports.b3_data_source import B3DataSource
 import json
 import base64
-
+from playwright.async_api import async_playwright, Page, BrowserContext
+from companies.domain.ports.b3_data_source import B3DataSource
+from shared.infrastructure.config import settings
 
 class PlaywrightB3DataSource(B3DataSource):
     def __init__(self, headless: bool = True):
         self.headless = headless
-        self.homepage_url = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesPage/?language=pt-br"
-        self.initial_companies_api = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyDataCall/GetInitialCompanies/"
+        self.homepage_url = settings.b3.homepage_url
+        self.initial_companies_api = settings.b3.initial_companies_api
 
     def _create_token(self, payload: dict) -> str:
         """Helper to create the base64 token required by B3 endpoints."""
@@ -62,7 +62,7 @@ class PlaywrightB3DataSource(B3DataSource):
 
     async def fetch_company_details(self, cvm_code: str) -> Dict[str, Any]:
         """Fetch details for a specific CVM Code"""
-        endpoint_base = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyDataCall/GetDetail/"
+        endpoint_base = settings.b3.detail_api
         payload = {"codeCVM": str(cvm_code), "language": "pt-br"}
         token = self._create_token(payload)
 
@@ -85,7 +85,7 @@ class PlaywrightB3DataSource(B3DataSource):
 
     async def fetch_company_financials(self, cvm_code: str) -> Dict[str, Any]:
         """Fetch financials and shareholders for a specific CVM Code"""
-        endpoint_base = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyDataCall/GetListedFinancial/"
+        endpoint_base = settings.b3.financial_api
         payload = {"codeCVM": str(cvm_code), "language": "pt-br"}
         token = self._create_token(payload)
 

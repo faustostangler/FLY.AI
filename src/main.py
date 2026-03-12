@@ -4,6 +4,8 @@ from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.database.connection import engine
 from companies.infrastructure.adapters.database.models import Base
 
+from shared.infrastructure.config import settings
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure tables are created on startup 
@@ -12,9 +14,9 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="FLY.AI Modular Monolith",
+    title=settings.app.title,
     description="SOTA Finance Data Platform using DDD and Hexagonal Architecture",
-    version="0.2.0",
+    version=settings.app.version,
     lifespan=lifespan
 )
 
