@@ -14,6 +14,7 @@ dependencies = [
     "pandas>=3.0.1",
     "numpy>=2.4.3",
     "pydantic-settings>=2.13.1",
+    "unidecode>=1.4.0",
 ]
 
 [project.optional-dependencies]

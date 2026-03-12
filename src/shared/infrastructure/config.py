@@ -27,6 +27,16 @@ class B3Settings(BaseModel):
     detail_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetDetail/"
     financial_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedFinancial/"
     headless: bool = False # True
+    words_to_remove: list[str] = [
+        "  EM LIQUIDACAO",
+        " EM LIQUIDACAO",
+        " EXTRAJUDICIAL",
+        "  EM RECUPERACAO JUDICIAL",
+        "  EM REC JUDICIAL",
+        " EM RECUPERACAO JUDICIAL",
+        " EM LIQUIDACAO EXTRAJUDICIAL",
+        " EMPRESA FALIDA",
+    ]
 
 # 2. The main class brings everything together
 class Settings(BaseSettings):

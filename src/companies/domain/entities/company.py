@@ -2,6 +2,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator
 import re
 from companies.domain.value_objects.cnpj import CNPJ
+from shared.infrastructure.utils.text import TextCleaner
 
 class Company(BaseModel):
     # Core Identification
@@ -40,6 +41,16 @@ class Company(BaseModel):
     has_quotation: Optional[str] = None
     has_emissions: Optional[str] = None
     has_bdr: Optional[str] = None
+
+    @field_validator(
+        "company_name", "trading_name", "sector", "subsector", 
+        "segment", "activity", "listing", "status", "type",
+        mode="before"
+    )
+    @classmethod
+    def clean_text_fields(cls, v: Optional[str]) -> Optional[str]:
+        """Automatically cleans text fields during entity creation."""
+        return TextCleaner.clean(v)
 
     @field_validator("cvm_code")
     def validate_cvm_code_is_numeric(cls, v: str) -> str:
