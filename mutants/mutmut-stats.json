@@ -1,0 +1,215 @@
+{
+    "tests_by_mangled_function_name": {
+        "companies.application.use_cases.sync_b3_companies.x\u01c1SyncB3CompaniesUseCase\u01c1_parse_industry_classification": [
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_dates",
+            "tests/companies/infrastructure/adapters/data_sources/test_b3_contract.py::test_b3_payload_contract",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_missing_industry_classification",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_none_other_codes",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_success",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_institutional_info"
+        ],
+        "shared.infrastructure.monitoring.metrics.x\u01c1MetricsProvider\u01c1_init_metrics": [
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_success"
+        ],
+        "companies.application.use_cases.sync_b3_companies.x\u01c1SyncB3CompaniesUseCase\u01c1_map_b3_payload_to_entity": [
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_dates",
+            "tests/companies/infrastructure/adapters/data_sources/test_b3_contract.py::test_b3_payload_contract",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_missing_industry_classification",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_none_other_codes",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_success",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_institutional_info"
+        ],
+        "companies.application.use_cases.sync_b3_companies.x\u01c1SyncB3CompaniesUseCase\u01c1_extract_security_identifiers": [
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_dates",
+            "tests/companies/infrastructure/adapters/data_sources/test_b3_contract.py::test_b3_payload_contract",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_missing_industry_classification",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_none_other_codes",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_success",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_institutional_info"
+        ],
+        "companies.application.use_cases.sync_b3_companies.x\u01c1SyncB3CompaniesUseCase\u01c1__init__": [
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_dates",
+            "tests/companies/infrastructure/adapters/data_sources/test_b3_contract.py::test_b3_payload_contract",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_missing_industry_classification",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_none_other_codes",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_success",
+            "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_institutional_info"
+        ],
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format": [
+            "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_valid",
+            "tests/companies/domain/entities/test_company.py::test_company_creation_success"
+        ],
+        "companies.infrastructure.adapters.data_sources.playwright_b3_data_source.x\u01c1PlaywrightB3DataSource\u01c1_get_context": [
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_initial_companies_success",
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_company_details_success"
+        ],
+        "companies.infrastructure.adapters.data_sources.playwright_b3_data_source.x\u01c1PlaywrightB3DataSource\u01c1_create_token": [
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_initial_companies_success",
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_create_token",
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_company_details_success"
+        ],
+        "companies.infrastructure.adapters.data_sources.playwright_b3_data_source.x\u01c1PlaywrightB3DataSource\u01c1__init__": [
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_initial_companies_success",
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_create_token",
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_company_details_success"
+        ],
+        "companies.infrastructure.adapters.data_sources.playwright_b3_data_source.x\u01c1PlaywrightB3DataSource\u01c1fetch_initial_companies": [
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_initial_companies_success"
+        ],
+        "companies.infrastructure.adapters.data_sources.playwright_b3_data_source.x\u01c1PlaywrightB3DataSource\u01c1__aenter__": [
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_initial_companies_success",
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_company_details_success"
+        ],
+        "companies.infrastructure.adapters.data_sources.playwright_b3_data_source.x\u01c1PlaywrightB3DataSource\u01c1__aexit__": [
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_initial_companies_success",
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_company_details_success"
+        ],
+        "companies.infrastructure.adapters.data_sources.playwright_b3_data_source.x\u01c1PlaywrightB3DataSource\u01c1fetch_company_details": [
+            "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_company_details_success"
+        ],
+        "companies.infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1__init__": [
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_company_success",
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success",
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_not_found",
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success"
+        ],
+        "companies.infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1_to_model": [
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_company_success",
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success",
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success"
+        ],
+        "companies.infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1save": [
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_company_success",
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success"
+        ],
+        "companies.infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1_to_entity": [
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success",
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success"
+        ],
+        "companies.infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1get_by_ticker": [
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_not_found",
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success"
+        ],
+        "companies.infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1save_batch": [
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success"
+        ],
+        "companies.infrastructure.adapters.database.postgres_company_repository.x\u01c1PostgresCompanyRepository\u01c1get_all": [
+            "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success"
+        ],
+        "shared.infrastructure.adapters.pandas.visitor.x\u01c1PandasVisitor\u01c1visit_cmp": [
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_logical_not",
+            "tests/shared/domain/value_objects/test_search_filter_tree.py::test_filtered_tree_works_with_filter_builder",
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_cmp_in_nin",
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_cmp_between",
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_cmp_basic"
+        ],
+        "shared.infrastructure.adapters.pandas.visitor.x\u01c1PandasVisitor\u01c1visit_and": [
+            "tests/shared/domain/value_objects/test_search_filter_tree.py::test_filtered_tree_works_with_filter_builder"
+        ],
+        "shared.infrastructure.adapters.pandas.types.x_ensure_datetime_col": [
+            "tests/shared/domain/value_objects/test_search_filter_tree.py::test_filtered_tree_works_with_filter_builder"
+        ],
+        "shared.infrastructure.progress.x\u01c1ProgressReporter\u01c1__init__": [
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_formatting",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_zero_total",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_initialization",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_extra_info",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_time_formatting"
+        ],
+        "shared.infrastructure.progress.x\u01c1ProgressReporter\u01c1_format_seconds": [
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_formatting",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_extra_info",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_time_formatting",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_zero_total"
+        ],
+        "shared.infrastructure.adapters.pandas.visitor.x\u01c1PandasVisitor\u01c1visit_null": [
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_null"
+        ],
+        "shared.infrastructure.adapters.pandas.visitor.x\u01c1PandasVisitor\u01c1visit_not": [
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_logical_not"
+        ],
+        "shared.infrastructure.progress.x\u01c1ProgressReporter\u01c1get_formatted_progress": [
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_formatting",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_extra_info",
+            "tests/shared/infrastructure/test_progress.py::test_progress_reporter_zero_total"
+        ],
+        "shared.infrastructure.adapters.pandas.types.x_ensure_list_col": [
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_list_any"
+        ],
+        "shared.infrastructure.adapters.pandas.visitor.x\u01c1PandasVisitor\u01c1visit_list_any": [
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_list_any"
+        ],
+        "shared.infrastructure.adapters.pandas.visitor.x\u01c1PandasVisitor\u01c1visit_str": [
+            "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_str"
+        ]
+    },
+    "duration_by_test": {
+        "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_success": 0.0022476189988083206,
+        "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_missing_industry_classification": 0.0006599950002055266,
+        "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_none_other_codes": 0.000605121000262443,
+        "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_dates": 0.0008395040003961185,
+        "tests/companies/application/use_cases/test_sync_b3_companies.py::TestSyncB3CompaniesUseCase::test_map_b3_payload_to_entity_with_institutional_info": 0.0006947690008018981,
+        "tests/companies/domain/entities/test_company.py::test_company_creation_success": 0.0007022080008027842,
+        "tests/companies/domain/entities/test_company.py::test_company_invalid_ticker": 0.0003418790001887828,
+        "tests/companies/domain/entities/test_company.py::test_company_invalid_cvm_code": 0.00031589700029144296,
+        "tests/companies/domain/entities/test_company.py::test_company_text_cleaning_on_creation": 0.00031822100027056877,
+        "tests/companies/domain/entities/test_company.py::test_company_bool_resilient_validation": 0.0003307960005258792,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_valid": 0.0006532269999297569,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_valid_unformatted": 0.0003439189995333436,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_invalid_length": 0.00030391200016310904,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_invalid_all_same_digits": 0.00032477499917149544,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_invalid_check_digits": 0.00029290200018294854,
+        "tests/companies/domain/value_objects/test_cnpj.py::test_cnpj_empty": 0.0003100280009675771,
+        "tests/companies/infrastructure/adapters/data_sources/test_b3_contract.py::test_b3_payload_contract": 0.005648450000080629,
+        "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_initial_companies_success": 0.0048592670009384165,
+        "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_fetch_company_details_success": 0.004177001000243763,
+        "tests/companies/infrastructure/adapters/data_sources/test_playwright_b3_data_source.py::test_create_token": 0.00029808699946443085,
+        "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_company_success": 0.008909830000447982,
+        "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_success": 0.0035661490001075435,
+        "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_get_by_ticker_not_found": 0.0020821190000788192,
+        "tests/companies/infrastructure/adapters/database/test_postgres_company_repository.py::test_save_batch_success": 0.004083083000296028,
+        "tests/companies/presentation/api/test_main.py::test_health_check": 0.004440996000084851,
+        "tests/companies/presentation/api/test_main.py::test_trigger_companies_sync": 0.0025690459997349535,
+        "tests/shared/domain/value_objects/test_search_filter_tree.py::test_filtered_by_fields_keeps_only_allowed_leaves": 0.0007278700004462735,
+        "tests/shared/domain/value_objects/test_search_filter_tree.py::test_filtered_by_fields_returns_none_when_all_pruned": 0.0003049710003324435,
+        "tests/shared/domain/value_objects/test_search_filter_tree.py::test_filtered_tree_works_with_filter_builder": 0.003095745000791794,
+        "tests/shared/infrastructure/utils/test_date_resilient.py::test_date_resilient_parser_success": 0.0008088969989330508,
+        "tests/shared/infrastructure/utils/test_date_resilient.py::test_date_resilient_parser_handles_none": 0.000281169999652775,
+        "tests/shared/infrastructure/utils/test_date_resilient.py::test_date_resilient_parser_failure_returns_none": 0.0013070290005998686,
+        "tests/shared/infrastructure/utils/test_date_resilient.py::test_date_resilient_parser_with_iso_format": 0.00038875100108271,
+        "tests/shared/infrastructure/utils/test_text.py::test_text_cleaner_removes_multiple_spaces": 0.00036638599976868136,
+        "tests/shared/infrastructure/utils/test_text.py::test_text_cleaner_removes_liquidacao": 0.00033680199976515723,
+        "tests/shared/infrastructure/utils/test_text.py::test_text_cleaner_removes_recuperacao_judicial": 0.0003334849989187205,
+        "tests/shared/infrastructure/utils/test_text.py::test_text_cleaner_handles_none": 0.0003254160001233686,
+        "tests/shared/infrastructure/utils/test_text.py::test_text_cleaner_removes_b3_specific_trash": 0.0003332349997435813,
+        "tests/shared/infrastructure/monitoring/test_metrics.py::test_metrics_initialization": 0.0007170009994297288,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_list_any": 0.00029747099961241474,
+        "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_cmp_basic": 0.002810072999636759,
+        "tests/shared/infrastructure/test_progress.py::test_progress_reporter_time_formatting": 0.00032340800044039497,
+        "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_null": 0.001427943001544918,
+        "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_logical_not": 0.0011155140000482788,
+        "tests/shared/domain/value_objects/test_search_filter_tree.py::test_search_filter_tree_none": 0.0005519119986274745,
+        "tests/shared/infrastructure/test_progress.py::test_progress_reporter_formatting": 0.00047172999984468333,
+        "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_list_any": 0.0016144860001077177,
+        "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_str": 0.0020140029992035124,
+        "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_cmp_between": 0.0011823060003735009,
+        "tests/shared/infrastructure/test_progress.py::test_progress_reporter_initialization": 0.00028167500113340793,
+        "tests/shared/domain/value_objects/test_search_filter_tree.py::test_search_filter_tree_invalid_data": 0.0005622349999612197,
+        "tests/shared/infrastructure/test_progress.py::test_progress_reporter_extra_info": 0.00043229400034761056,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_implicit_or_from_list": 0.0002688099993974902,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_cmp_operators": 0.00031275800120056374,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_logical_not": 0.00025946900041162735,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_null_checks": 0.0002593179997347761,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_logical_or": 0.0002638930000102846,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_str_match": 0.00026589000026433496,
+        "tests/shared/domain/value_objects/test_search_filter_tree.py::test_search_filter_tree_hash_is_deterministic": 0.0005927340007474413,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_logical_and": 0.0002646220000315225,
+        "tests/shared/infrastructure/monitoring/test_metrics.py::test_metrics_recording": 0.0006178749999889988,
+        "tests/shared/infrastructure/adapters/pandas/test_visitor.py::test_visit_cmp_in_nin": 0.0013126459998602513,
+        "tests/shared/infrastructure/monitoring/test_metrics.py::test_metrics_singleton": 0.00029025000094407005,
+        "tests/shared/infrastructure/test_progress.py::test_progress_reporter_zero_total": 0.0002788860010696226,
+        "tests/shared/domain/value_objects/test_search_filter_tree.py::test_search_filter_tree_is_empty": 0.0006217279988049995,
+        "tests/shared/application/utils/test_filter_builder.py::test_build_spec_invalid": 0.0003393099996173987
+    },
+    "stats_time": 2.65912895
+}

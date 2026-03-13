@@ -1,118 +1,138 @@
 services:
   api:
     build: .
+    container_name: ${COMPOSE_PROJECT_NAME}_api
     ports:
-      - "8001:8000"
+      - "${API_EXTERNAL_PORT}:${API_INTERNAL_PORT}"
     environment:
-      - DB__URL=postgresql://postgres:postgres@db:5432/flyai_b3
-      - REDIS__URL=redis://redis:6379/0
+      - APP_ENV=${APP_ENV}
+      - APP__DEBUG=${APP__DEBUG}
+      - LOG_LEVEL=${LOG_LEVEL}
+      # Assemble the connection string using dynamic variables
+      - DB__URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${DB_INTERNAL_PORT}/${POSTGRES_DB}
+      - REDIS__URL=redis://cache:${REDIS_INTERNAL_PORT}/0
     depends_on:
       db:
         condition: service_healthy
-      redis:
+      cache:
         condition: service_started
     networks:
-      - flyai-net
+      - fly-net
 
-  # Example Worker manifesting the same image
-  worker-companies:
+  worker-company-data-source:
     build: .
-    command: ["python", "-m", "src.shared.presentation.cli", "sync-companies"] # Placeholder for now
+    container_name: ${COMPOSE_PROJECT_NAME}_worker_company_data_source
+    command: ["python", "-m", "src.shared.presentation.cli", "sync-companies"]
     environment:
-      - DB__URL=postgresql://postgres:postgres@db:5432/flyai_b3
+      - APP_ENV=${APP_ENV}
+      - DB__URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${DB_INTERNAL_PORT}/${POSTGRES_DB}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
-      - flyai-net
+      - fly-net
 
   db:
-    image: postgres:16-alpine
+    image: postgres:${POSTGRES_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_db
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=flyai_b3
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "${DB_EXTERNAL_PORT}:${DB_INTERNAL_PORT}"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - flyai-net
+      - fly-net
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - fly-db-data:/var/lib/postgresql/data
 
-  redis:
-    image: redis:7-alpine
+  cache:
+    image: redis:${REDIS_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_cache
     ports:
-      - "6379:6379"
+      - "${REDIS_EXTERNAL_PORT}:${REDIS_INTERNAL_PORT}"
     networks:
-      - flyai-net
+      - fly-net
     volumes:
-      - /mnt/gamer_d/FLY.AI_infra/data/redis:/data
+      - fly-cache-data:/data
 
-  pgadmin:
-    image: dpage/pgadmin4
+  db-admin:
+    image: dpage/pgadmin4:${PGADMIN_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_db_admin
     environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@fly.ai
-      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
       - PGADMIN_SERVER_MODE=True
       - PGADMIN_CONFIG_SERVER_MODE=True
       - PGADMIN_SERVER_JSON_FILE=/pgadmin4/servers.json
       - PGADMIN_REPLACE_SERVERS_ON_STARTUP=True
-    volumes:
-      - pgadmin-data:/var/lib/pgadmin
-      - ./monitoring/pgadmin/servers.json:/pgadmin4/servers.json
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - DB_INTERNAL_PORT=${DB_INTERNAL_PORT}
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - "sed \"s/\\$${POSTGRES_USER}/$${POSTGRES_USER}/g; s/\\$${POSTGRES_DB}/$${POSTGRES_DB}/g; s/\\$${DB_INTERNAL_PORT}/$${DB_INTERNAL_PORT}/g\" /pgadmin4/servers.json.template > /pgadmin4/servers.json && /entrypoint.sh"
     ports:
-      - "5050:80"
+      - "${PGADMIN_EXTERNAL_PORT}:${PGADMIN_INTERNAL_PORT}"
     networks:
-      - flyai-net
+      - fly-net
     depends_on:
       - db
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    user: "0:0"
     volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - /mnt/gamer_d/FLY.AI_infra/data/prometheus:/prometheus
+      - fly-db-admin-data:/var/lib/pgadmin
+      - ./monitoring/pgadmin/servers.json.template:/pgadmin4/servers.json.template
+
+  metrics:
+    image: prom/prometheus:${PROMETHEUS_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_metrics
+    user: "0:0"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_EXTERNAL_PORT}:${PROMETHEUS_INTERNAL_PORT}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
-      - flyai-net
+      - fly-net
     restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - fly-metrics-data:/prometheus
 
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
+  observability:
+    image: grafana/grafana:${GRAFANA_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_observability
     user: "0:0"
     ports:
-      - "3000:3000"
-    volumes:
-      - /mnt/gamer_d/FLY.AI_infra/data/grafana:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - "${GRAFANA_EXTERNAL_PORT}:${GRAFANA_INTERNAL_PORT}"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
-      - flyai-net
+      - fly-net
     depends_on:
-      - prometheus
+      - metrics
     restart: unless-stopped
+    volumes:
+      - fly-observability-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
 
 volumes:
-  postgres-data:
-  pgadmin-data:
+  fly-db-data:
+  fly-cache-data:
+  fly-db-admin-data:
+  fly-metrics-data:
+  fly-observability-data:
 
 networks:
-  flyai-net:
+  fly-net:
     driver: bridge

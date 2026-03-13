@@ -151,4 +151,4 @@ data/
 *dom.
 
 # tests
-*.meta
+*.meta.env

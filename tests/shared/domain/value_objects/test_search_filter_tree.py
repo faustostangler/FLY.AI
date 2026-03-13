@@ -1,3 +1,4 @@
+import pytest
 import pandas as pd
 
 from shared.application.utils.filter_builder import FilterBuilder
@@ -51,3 +52,20 @@ def test_filtered_tree_works_with_filter_builder():
 
     assert len(filtered_df) == 1
     assert filtered_df.iloc[0]["value"] == 2
+
+def test_search_filter_tree_hash_is_deterministic():
+    tree1 = SearchFilterTree.from_raw({"and": [{"f1": "v1"}, {"f2": "v2"}]})
+    tree2 = SearchFilterTree.from_raw({"and": [{"f1": "v1"}, {"f2": "v2"}]})
+    
+    assert tree1.to_hash() == tree2.to_hash()
+
+def test_search_filter_tree_is_empty():
+    assert SearchFilterTree.from_raw({}).is_empty() is True
+    assert SearchFilterTree.from_raw({"f": "v"}).is_empty() is False
+
+def test_search_filter_tree_invalid_data():
+    with pytest.raises(TypeError):
+        SearchFilterTree.from_raw("not a dict")
+
+def test_search_filter_tree_none():
+    assert SearchFilterTree.from_raw(None) is None
