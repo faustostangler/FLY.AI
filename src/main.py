@@ -8,7 +8,9 @@ from companies.infrastructure.adapters.database.models import Base
 
 import logging
 import os
+import time
 from shared.infrastructure.config import settings
+from shared.infrastructure.monitoring.metrics import metrics
 
 # --- Logic for Logging SOTA Configuration ---
 os.makedirs(settings.app.log_dir, exist_ok=True)

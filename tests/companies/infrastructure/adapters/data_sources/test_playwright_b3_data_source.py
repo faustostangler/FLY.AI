@@ -34,15 +34,15 @@ def mock_playwright_infrastructure():
 
 @pytest.mark.asyncio
 async def test_fetch_initial_companies_success(mock_playwright_infrastructure):
-    # Setup mock response for the context.request.get
-    mock_response = AsyncMock()
-    mock_response.ok = True
-
-    # Simulating a return after loop check (Note: -1 loop logic is active)
-    mock_response.json = AsyncMock(return_value={
+    # Arrange
+    companies_data = {
         "page": {"totalPages": -1},
         "results": [{"issuingCompany": "PETR", "companyName": "PETROBRAS"}]
-    })
+    }
+    mock_response = AsyncMock()
+    mock_response.ok = True
+    mock_response.status = 200
+    mock_response.body = AsyncMock(return_value=json.dumps(companies_data).encode("utf-8"))
 
     mock_playwright_infrastructure.request.get = AsyncMock(return_value=mock_response)
 
@@ -58,9 +58,11 @@ async def test_fetch_initial_companies_success(mock_playwright_infrastructure):
 
 @pytest.mark.asyncio
 async def test_fetch_company_details_success(mock_playwright_infrastructure):
+    details_data = {"codeCVM": "9512", "sector": "Petróleo"}
     mock_response = AsyncMock()
     mock_response.ok = True
-    mock_response.json = AsyncMock(return_value={"codeCVM": "9512", "sector": "Petróleo"})
+    mock_response.status = 200
+    mock_response.body = AsyncMock(return_value=json.dumps(details_data).encode("utf-8"))
     mock_playwright_infrastructure.request.get = AsyncMock(return_value=mock_response)
 
     data_source = PlaywrightB3DataSource(headless=True)

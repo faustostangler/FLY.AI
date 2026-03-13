@@ -4,6 +4,7 @@ import base64
 from playwright.async_api import async_playwright, Page, BrowserContext
 from companies.domain.ports.b3_data_source import B3DataSource
 from shared.infrastructure.config import settings
+from shared.infrastructure.monitoring.metrics import metrics
 
 class PlaywrightB3DataSource(B3DataSource):
     def __init__(self, headless: Optional[bool] = None):

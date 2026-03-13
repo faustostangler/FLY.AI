@@ -363,6 +363,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "httpx" },
+    { name = "mutmut" },
     { name = "pytest-asyncio" },
 ]
 
@@ -391,6 +392,7 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 dev = [
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "mutmut", specifier = ">=3.5.0" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
 ]
 

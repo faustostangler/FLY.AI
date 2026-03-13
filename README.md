@@ -47,3 +47,10 @@ docker compose up
 - **Playwright** (Scraping)
 - **Postgres 16**
 - **uv** (Package Management)
+
+
+## Mantainance Pages
+    API Docs: http://localhost:8000/docs#/
+    Postgres Browser: http://localhost:5050/browser/
+    Prometheus: http://localhost:9090/targets
+    Grafana: http://localhost:3000/

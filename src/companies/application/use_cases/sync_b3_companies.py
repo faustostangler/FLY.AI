@@ -37,12 +37,11 @@ class SyncB3CompaniesUseCase:
         ticker_codes, isin_codes = self._extract_security_identifiers(
             detailed_info.get("otherCodes", [])
         )
-
         try:
             return Company(
-                ticker=basic_info.get("issuingCompany"),
+                ticker=detailed_info.get("issuingCompany") or basic_info.get("issuingCompany"),
                 cvm_code=str(basic_info.get("codeCVM")),
-                company_name=basic_info.get("companyName"),
+                company_name=detailed_info.get("companyName") or basic_info.get("companyName"),
                 trading_name=detailed_info.get("tradingName"),
                 cnpj=detailed_info.get("cnpj"),
                 listing=detailed_info.get("market"),
@@ -56,8 +55,8 @@ class SyncB3CompaniesUseCase:
                 last_date=DateResilientParser.parse(detailed_info.get("lastDate"), "last_date"),
                 date_quotation=DateResilientParser.parse(detailed_info.get("dateQuotation"), "date_quotation"),
                 website=detailed_info.get("website"),
-                registrar=detailed_info.get("registrar"),
-                main_registrar=detailed_info.get("mainRegistrar") or detailed_info.get("main_registrar"),
+                registrar=detailed_info.get("registrar") or detailed_info.get("institutionCommon"),
+                main_registrar=detailed_info.get("mainRegistrar") or detailed_info.get("institutionPreferred") or detailed_info.get("main_registrar"),
                 status=detailed_info.get("status"),
                 type=detailed_info.get("type"),
                 market_indicator=detailed_info.get("marketIndicator"),

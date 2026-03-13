@@ -38,8 +38,8 @@ def test_save_company_success(repo, db_session, sample_company):
     # Assert
     saved = db_session.query(CompanyModel).filter_by(ticker="PETR4").first()
     assert saved is not None
-    assert saved.company_name == "Petrobras"
-    assert saved.sector == "Energy"
+    assert saved.company_name == "PETROBRAS"
+    assert saved.sector == "ENERGY"
 
 def test_get_by_ticker_success(repo, db_session, sample_company):
     # Setup
