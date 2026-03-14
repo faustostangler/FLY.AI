@@ -10,7 +10,8 @@ class TestSyncB3CompaniesUseCase:
     def use_case(self):
         data_source = MagicMock()
         repository = MagicMock()
-        return SyncB3CompaniesUseCase(data_source, repository)
+        telemetry = MagicMock()
+        return SyncB3CompaniesUseCase(data_source, repository, telemetry)
 
     def test_map_b3_payload_to_entity_success(self, use_case):
         # Arrange

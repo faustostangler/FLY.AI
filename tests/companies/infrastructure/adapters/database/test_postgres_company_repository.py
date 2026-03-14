@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from companies.domain.entities.company import Company
+from companies.domain.value_objects.cnpj import CNPJ
 from companies.infrastructure.adapters.database.models import Base, CompanyModel
 from companies.infrastructure.adapters.database.postgres_company_repository import PostgresCompanyRepository
 
@@ -28,7 +29,7 @@ def sample_company():
         cvm_code="9512",
         company_name="Petróleo Brasileiro S.A. - Petrobras",
         trading_name="PETROBRAS",
-        cnpj="33000167000101",
+        cnpj=CNPJ("33000167000101"),
         sector="Energy",
         subsector="Oil, Gas and Biofuels",
         segment="Exploration and Production",
@@ -61,6 +62,7 @@ def test_mapping_integrity_roundtrip(repo, sample_company):
     Testa se todos os atributos da entidade sobrevivem à ida e volta do banco de dados.
     Isso garante que o _to_model e _to_entity mapeiem todos os campos corretamente.
     """
+    import dataclasses
     # Action
     repo.save(sample_company)
     fetched = repo.get_by_ticker(sample_company.ticker)
@@ -69,15 +71,15 @@ def test_mapping_integrity_roundtrip(repo, sample_company):
     assert fetched is not None
     
     # Comparação exaustiva de campos
-    for field in Company.model_fields:
-        val_original = getattr(sample_company, field)
-        val_fetched = getattr(fetched, field)
+    for f in dataclasses.fields(Company):
+        val_original = getattr(sample_company, f.name)
+        val_fetched = getattr(fetched, f.name)
         
         # Especial para Value Objects (CNPJ)
-        if field == "cnpj" and val_original:
+        if f.name == "cnpj" and val_original:
             assert val_fetched.root == val_original.root
         else:
-            assert val_fetched == val_original, f"Mapeamento do campo '{field}' falhou no Round-trip"
+            assert val_fetched == val_original, f"Mapeamento do campo '{f.name}' falhou no Round-trip"
 
 def test_get_by_ticker_success(repo, db_session, sample_company):
     # Setup
@@ -111,4 +113,4 @@ def test_save_batch_success(repo, db_session):
     indexed_companies = {c.ticker: c for c in all_companies}
     assert indexed_companies["VALE3"].cvm_code == "4170"
     assert indexed_companies["ITUB4"].cvm_code == "19348"
-    assert indexed_companies["VALE3"].sector == "MATERIALS"
+    assert indexed_companies["VALE3"].sector == "Materials"

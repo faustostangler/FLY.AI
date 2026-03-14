@@ -46,7 +46,7 @@ async def test_fetch_initial_companies_success(mock_playwright_infrastructure):
 
     mock_playwright_infrastructure.request.get = AsyncMock(return_value=mock_response)
 
-    data_source = PlaywrightB3DataSource(headless=True)
+    data_source = PlaywrightB3DataSource(telemetry=MagicMock(), headless=True)
     
     # Using the new Context Manager pattern required by the refactor
     async with data_source:
@@ -65,7 +65,7 @@ async def test_fetch_company_details_success(mock_playwright_infrastructure):
     mock_response.body = AsyncMock(return_value=json.dumps(details_data).encode("utf-8"))
     mock_playwright_infrastructure.request.get = AsyncMock(return_value=mock_response)
 
-    data_source = PlaywrightB3DataSource(headless=True)
+    data_source = PlaywrightB3DataSource(telemetry=MagicMock(), headless=True)
     
     async with data_source:
         details = await data_source.fetch_company_details("9512")
@@ -75,7 +75,7 @@ async def test_fetch_company_details_success(mock_playwright_infrastructure):
 
 
 def test_create_token():
-    data_source = PlaywrightB3DataSource()
+    data_source = PlaywrightB3DataSource(telemetry=MagicMock())
     payload = {"test": "data"}
     token = data_source._create_token(payload)
 
