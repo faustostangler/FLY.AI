@@ -4,7 +4,7 @@
             "Name": "Fly Database",
             "Group": "Servers",
             "Host": "db",
-            "Port": "${DB_INTERNAL_PORT}",
+            "Port": ${DB_INTERNAL_PORT},
             "MaintenanceDB": "${POSTGRES_DB}",
             "Username": "${POSTGRES_USER}",
             "SSLMode": "prefer",

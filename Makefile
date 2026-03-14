@@ -44,18 +44,23 @@ setup:
 	docker compose build
 
 up:
+	docker compose --profile "*" down
 	docker compose up -d
 
 up-worker:
+	docker compose --profile "*" down
 	docker compose up -d worker
 
 up-admin:
+	docker compose --profile "*" down
 	COMPOSE_PROFILES=admin docker compose up -d
 
 up-obs:
+	docker compose --profile "*" down
 	COMPOSE_PROFILES=observability docker compose up -d
 
 sync:
+	docker compose --profile "*" down
 	docker compose run --rm worker
 
 ps:

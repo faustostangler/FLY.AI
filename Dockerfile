@@ -1,69 +1,51 @@
-# SOTA Dockerfile for FLY.AI Modular Monolith
+# Stage 1: Base - System Dependencies
+FROM python:3.12-slim AS base
+
+WORKDIR /app
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/pw-browsers
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    # Playwright system dependencies
+    libglib2.0-0 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxext6 \
+    libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Stage 2: Builder - Artifact Preparation
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/pw-browsers
 WORKDIR /app
 
-# Install system dependencies for Playwright and Postgres
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install dependencies first for caching
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     uv sync --frozen --no-install-project --no-dev
 
-    # Copy source code
+# Install Playwright browsers in builder stage
+RUN .venv/bin/python -m playwright install chromium
+
 COPY src/ /app/src/
 COPY pyproject.toml uv.lock README.md /app/
-
-# Install the project
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# Runtime stage
-FROM python:3.12-slim AS runtime
+# Stage 3: Runtime - Production Image
+FROM base AS runtime
 
-WORKDIR /app
-
-# 1. Set Playwright path and Create User EARLY
-ENV PLAYWRIGHT_BROWSERS_PATH=/app/pw-browsers
 RUN useradd -m appuser && chown appuser:appuser /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# 2. Optimized COPY: Ownership set during file transfer
+# Copy prepared artifacts from builder
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+COPY --from=builder --chown=appuser:appuser /app/pw-browsers /app/pw-browsers
+COPY --from=builder --chown=appuser:appuser /app/src/ /app/src/
+
 ENV PATH="/app/.venv/bin:$PATH"
-
-# 3. Switch to User BEFORE heavy installs
 USER appuser
-
-# Install Playwright browsers as non-root (faster, safer)
-RUN playwright install chromium
-
-# Copy the source code as appuser
-COPY --chown=appuser:appuser src/ /app/src/
-
-# ==============================================================================
-# ARCHITECT ALERT: NON-ROOT USER & BIND MOUNTS (UID/GID CONFLICTS)
-# ------------------------------------------------------------------------------
-# We are enforcing the Principle of Least Privilege (PoLP) by running the app 
-# as 'appuser' instead of 'root'. 
-#
-# FUTURE DEVS: If you use Docker Bind Mounts (e.g., mapping ./src:/app/src) 
-# for live-reloading in local development, you might face permission denied 
-# errors if 'appuser' tries to write files (like logs or sqlite dbs) to a 
-# folder owned by your host OS user.
-# ==============================================================================
 
 EXPOSE 8000
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
