@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from companies.domain.entities.company import Company
 from companies.domain.ports.company_repository import CompanyRepository
 from companies.infrastructure.adapters.database.models import CompanyModel
+from companies.domain.value_objects.cnpj import CNPJ
 
 class PostgresCompanyRepository(CompanyRepository):
     """
@@ -37,8 +38,8 @@ class PostgresCompanyRepository(CompanyRepository):
             status=entity.status,
             type=entity.type,
             market_indicator=entity.market_indicator,
-            ticker_codes=json.dumps(entity.ticker_codes) if entity.ticker_codes else "[]",
-            isin_codes=json.dumps(entity.isin_codes) if entity.isin_codes else "[]",
+            ticker_codes=json.dumps(entity.ticker_codes),
+            isin_codes=json.dumps(entity.isin_codes),
             type_bdr=entity.type_bdr,
             has_quotation=entity.has_quotation,
             has_emissions=entity.has_emissions,
@@ -47,12 +48,23 @@ class PostgresCompanyRepository(CompanyRepository):
 
     def _to_entity(self, model: CompanyModel) -> Company:
         """Map SQLAlchemy Model back to Domain Entity"""
+        # Manual parsing of JSON fields since Entity is now a pure dataclass
+        try:
+            ticker_codes = json.loads(model.ticker_codes) if model.ticker_codes else []
+        except (json.JSONDecodeError, TypeError):
+            ticker_codes = []
+            
+        try:
+            isin_codes = json.loads(model.isin_codes) if model.isin_codes else []
+        except (json.JSONDecodeError, TypeError):
+            isin_codes = []
+
         return Company(
             ticker=model.ticker,
             cvm_code=model.cvm_code,
             company_name=model.company_name,
             trading_name=model.trading_name,
-            cnpj=model.cnpj,
+            cnpj=CNPJ(model.cnpj) if model.cnpj else None,
             listing=model.listing,
             sector=model.sector,
             subsector=model.subsector,
@@ -69,8 +81,8 @@ class PostgresCompanyRepository(CompanyRepository):
             status=model.status,
             type=model.type,
             market_indicator=model.market_indicator,
-            ticker_codes=model.ticker_codes, # Entity validator handles JSON string to List conversion
-            isin_codes=model.isin_codes,
+            ticker_codes=ticker_codes,
+            isin_codes=isin_codes,
             type_bdr=model.type_bdr,
             has_quotation=model.has_quotation,
             has_emissions=model.has_emissions,
