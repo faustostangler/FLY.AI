@@ -122,8 +122,15 @@ def setup_tracing(
 
     # --- Auto-Instrumentation: FastAPI (HTTP layer) ---
     if app is not None:
-        FastAPIInstrumentor.instrument_app(app)  # type: ignore[arg-type]
-        logger.info("OTel: FastAPI auto-instrumented (spans per route)")
+        # SOTA: FinOps & Noise Reduction
+        # Lê as rotas ignoradas do ambiente (ex: metrics,health)
+        excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
+        
+        FastAPIInstrumentor.instrument_app(
+            app,  # type: ignore[arg-type]
+            excluded_urls=excluded_urls_str
+        )
+        logger.info(f"OTel: FastAPI auto-instrumented (ignoring routes: {excluded_urls_str})")
 
     # --- Auto-Instrumentation: SQLAlchemy (Database layer) ---
     if engine is not None:

@@ -3,6 +3,7 @@ import json
 import base64
 from playwright.async_api import async_playwright, Page, BrowserContext
 from companies.domain.ports.b3_data_source import B3DataSource
+from companies.domain.exceptions import B3RateLimitExceededError
 from shared.infrastructure.config import settings
 from shared.domain.ports.telemetry_port import TelemetryPort
 
@@ -87,7 +88,7 @@ class PlaywrightB3DataSource(B3DataSource):
                 )
                 if response.status == 429:
                     self._telemetry.increment_b3_rate_limit_hits()
-                    raise Exception(f"Rate limited by B3 (429) on initial fetch. Payload: {payload}")
+                    raise B3RateLimitExceededError(f"Rate limited by B3 (429) on initial fetch. Payload: {payload}")
                 
                 if not response.ok:
                     raise Exception(f"Failed to fetch initial companies page {page_num}: {response.status}")
@@ -125,7 +126,7 @@ class PlaywrightB3DataSource(B3DataSource):
             )
             if response.status == 429:
                 self._telemetry.increment_b3_rate_limit_hits()
-                raise Exception(f"Rate limited by B3 (429) on details fetch for {cvm_code}.")
+                raise B3RateLimitExceededError(f"Rate limited by B3 (429) on details fetch for {cvm_code}.")
 
             if not response.ok:
                 raise Exception(f"Failed to fetch details for {cvm_code}: {response.status}")

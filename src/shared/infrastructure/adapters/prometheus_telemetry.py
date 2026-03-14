@@ -1,3 +1,4 @@
+from typing import Optional
 from shared.domain.ports.telemetry_port import TelemetryPort
 from shared.infrastructure.monitoring.metrics import (
     ACTIVE_SYNC_TASKS,
@@ -8,6 +9,8 @@ from shared.infrastructure.monitoring.metrics import (
     DATE_PARSING_FAILURES,
     B3_RATE_LIMIT_HITS,
     NETWORK_TRANSMIT_BYTES_TOTAL,
+    DATA_VALIDATION_ERRORS,
+    GENERIC_SYNC_ERRORS,
 )
 
 class PrometheusTelemetryAdapter(TelemetryPort):
@@ -37,3 +40,9 @@ class PrometheusTelemetryAdapter(TelemetryPort):
 
     def increment_network_transmit_bytes(self, direction: str, context: str, payload_size: int) -> None:
         NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction=direction, context=context).inc(payload_size)
+
+    def increment_data_validation_error(self, entity: str, field: str, reason: str) -> None:
+        DATA_VALIDATION_ERRORS.labels(entity=entity, field=field, reason=reason).inc()
+
+    def increment_generic_sync_error(self, type: str) -> None:
+        GENERIC_SYNC_ERRORS.labels(type=type).inc()

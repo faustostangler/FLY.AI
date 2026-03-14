@@ -28,6 +28,7 @@ help:
 	@echo "up-worker  : Start ONLY the Worker + deps"
 	@echo "up-admin   : Start Foundation + pgAdmin"
 	@echo "up-obs     : Start Foundation + observability"
+	@echo "up-prod-local: Start Foundation (Ignoring dev overrides, Prod simulation)"
 	@echo "sync       : Run a one-off synchronization task"
 	@echo "ps         : List services"
 	@echo "logs       : Tail logs"
@@ -68,6 +69,10 @@ up-admin:
 up-obs:
 	$(DC) --profile "*" down
 	COMPOSE_PROFILES=observability $(DC) up -d --build
+
+up-prod-local:
+	@echo "Running Production Simulation (Ignoring dev overrides)..."
+	$(DC) -f docker-compose.yml up -d
 
 sync:
 	$(DC) --profile "*" down
