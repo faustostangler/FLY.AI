@@ -1,0 +1,12 @@
+services:
+  api:
+    volumes:
+      - ./src:/app/src
+    # Em dev, habilitamos o hot-reload do uvicorn
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  worker:
+    volumes:
+      - ./src:/app/src
+    # O worker do scrapper geralmente é um script que roda e fecha, 
+    # mas o bind-mount garante que ele use o código atual sem rebuild.
