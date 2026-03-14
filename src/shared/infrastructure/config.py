@@ -1,6 +1,17 @@
+import glob
 from typing import Optional
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Dynamic Environment Discovery from env/ folder
+# Last file in the tuple has precedence in Pydantic Settings.
+ENV_FILES = sorted(glob.glob(".env/*.env"))
+
+# Ensure profile.env is last if it exists (for ORM/Profile overrides)
+if ".env/profile.env" in ENV_FILES:
+    ENV_FILES.remove(".env/profile.env")
+    ENV_FILES.append(".env/profile.env")
 
 
 class AppSettings(BaseModel):
@@ -130,7 +141,7 @@ class Settings(BaseSettings):
     b3: B3Settings = B3Settings()
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=tuple(ENV_FILES),
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
         case_sensitive=False,

@@ -43,6 +43,7 @@ RUN useradd -m appuser && chown appuser:appuser /app
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 COPY --from=builder --chown=appuser:appuser /app/pw-browsers /app/pw-browsers
 COPY --from=builder --chown=appuser:appuser /app/src/ /app/src/
+COPY --chown=appuser:appuser .env/ /app/.env/
 
 ENV PATH="/app/.venv/bin:$PATH"
 USER appuser
