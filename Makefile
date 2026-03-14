@@ -13,20 +13,30 @@ endif
 help:
 	@echo "FLY.AI SOTA Operations"
 	@echo "----------------------"
+	@echo "build      : Build core local images"
+	@echo "rebuild    : Rebuild core local images"
 	@echo "setup      : Initial environment setup (uv sync, pull images)"
 	@echo "up         : Start Universal Foundation (API, Worker, DB, Cache)"
 	@echo "up-worker  : Start ONLY the Worker + dependencies (Scale-Out/Staging mode)"
 	@echo "up-admin   : Start Foundation + db-admin (pgAdmin)"
 	@echo "up-obs     : Start Foundation + observability (Prometheus & Grafana)"
-	@echo "down       : Stop and remove all containers"
+	@echo "sync       : Run a one-off synchronization task"
 	@echo "ps         : List running services"
 	@echo "logs       : Tail all logs"
 	@echo "shell      : Open a shell in the API container"
 	@echo "shell-work : Open a shell in the Worker container"
-	@echo "sync       : Run a one-off synchronization task"
-	@echo "build      : Build core local images"
-	@echo "rebuild    : Rebuild core local images"
+	@echo "down       : Stop and remove all containers"
+	@echo "down-force : Stop and remove all containers (force)"
+	@echo "destroy-v  : Destroy all volumes"
+	@echo "destroy-im : Destroy all images"
+	@echo "destroy-all: Destroy all containers and volumes"
 
+
+build:
+	docker compose build
+
+rebuild:
+	docker compose build --no-cache
 
 setup:
 	uv sync
@@ -45,8 +55,8 @@ up-admin:
 up-obs:
 	COMPOSE_PROFILES=observability docker compose up -d
 
-down:
-	docker compose down
+sync:
+	docker compose run --rm worker
 
 ps:
 	docker compose ps
@@ -60,11 +70,18 @@ shell:
 shell-work:
 	docker compose exec worker /bin/bash
 
-sync:
-	docker compose run --rm worker
+down:
+	docker compose down
 
-build:
-	docker compose build
+down-force:
+	docker compose --profile "*" down
 
-rebuild:
-	docker compose build --no-cache
+destroy-v:
+	docker compose --profile "*" down -v
+
+destroy-im:
+	docker compose --profile "*" down -v --rmi all
+
+destroy-all:
+	docker compose --profile "*" down -v --rmi all --remove-orphans
+	docker system prune -a -f

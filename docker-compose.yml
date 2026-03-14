@@ -137,7 +137,7 @@ services:
       - PGADMIN_DEFAULT_PASSWORD=${DB_ADMIN_PASSWORD}
       - PGADMIN_SERVER_MODE=True
       - PGADMIN_CONFIG_SERVER_MODE=True
-      - PGADMIN_SERVER_JSON_FILE=/pgadmin4/servers.json
+      - PGADMIN_SERVER_JSON_FILE=/tmp/servers.json
       - PGADMIN_REPLACE_SERVERS_ON_STARTUP=True
       - POSTGRES_USER=${DB__USER}
       - POSTGRES_DB=${DB__NAME}
@@ -146,7 +146,7 @@ services:
     entrypoint:
       - "/bin/sh"
       - "-c"
-      - "sed \"s/\\$${POSTGRES_USER}/$${POSTGRES_USER}/g; s/\\$${POSTGRES_DB}/$${POSTGRES_DB}/g; s/\\$${DB_INTERNAL_PORT}/$${DB_INTERNAL_PORT}/g\" /pgadmin4/servers.json.template > /pgadmin4/servers.json && /entrypoint.sh"
+      - "sed \"s/\\$${POSTGRES_USER}/$${POSTGRES_USER}/g; s/\\$${POSTGRES_DB}/$${POSTGRES_DB}/g; s/\\$${DB_INTERNAL_PORT}/$${DB_INTERNAL_PORT}/g\" /pgadmin4/servers.json.template > /tmp/servers.json && /entrypoint.sh"
     ports:
       - "${DOCKER_BIND_IP}:${DB_ADMIN_EXTERNAL_PORT}:${DB_ADMIN_INTERNAL_PORT}"
     networks:
