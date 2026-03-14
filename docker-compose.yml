@@ -1,80 +1,128 @@
 services:
   api:
-    build: .
-    container_name: ${COMPOSE_PROJECT_NAME}_api
+    build:
+      context: .
+      target: ${DOCKER_BUILD_TARGET}
+    image: ${API_IMAGE_NAME}:${API_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${API_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
     ports:
-      - "${API_EXTERNAL_PORT}:${API_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${API_EXTERNAL_PORT}:${API_INTERNAL_PORT}"
+    deploy:
+      resources:
+        limits:
+          cpus: '${API_CPU_LIMIT}'
+          memory: ${API_MEM_LIMIT}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${DOCKER_LOG_MAX_SIZE}"
+        max-file: "${DOCKER_LOG_MAX_FILE}"
     environment:
       - APP_ENV=${APP_ENV}
       - APP__DEBUG=${APP__DEBUG}
       - LOG_LEVEL=${LOG_LEVEL}
-      # Database: Point to 'db' service container
       - DB__USER=${DB__USER}
       - DB__PASSWORD=${DB__PASSWORD}
       - DB__NAME=${DB__NAME}
-      - DB__HOST=db
+      - DB__HOST=${DB_SERVICE_NAME}
       - DB__PORT=${DB_INTERNAL_PORT}
-      # Redis: Point to 'cache' service container
-      - REDIS__HOST=cache
+      - REDIS__HOST=${CACHE_SERVICE_NAME}
       - REDIS__PORT=${REDIS_INTERNAL_PORT}
     depends_on:
       db:
         condition: service_healthy
       cache:
-        condition: service_started
+        condition: service_healthy
     networks:
-      - fly-net
+      - app-network
 
-  worker-company-data-source:
-    build: .
-    container_name: ${COMPOSE_PROJECT_NAME}_worker_company_data_source
+  worker:
+    build:
+      context: .
+      target: ${DOCKER_BUILD_TARGET}
+    image: ${WORKER_IMAGE_NAME}:${WORKER_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${WORKER_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    deploy:
+      resources:
+        limits:
+          cpus: '${WORKER_CPU_LIMIT}'
+          memory: ${WORKER_MEM_LIMIT}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${DOCKER_LOG_MAX_SIZE}"
+        max-file: "${DOCKER_LOG_MAX_FILE}"
     command: ["python", "-m", "src.shared.presentation.cli", "sync-companies"]
     environment:
       - APP_ENV=${APP_ENV}
       - DB__USER=${DB__USER}
       - DB__PASSWORD=${DB__PASSWORD}
       - DB__NAME=${DB__NAME}
-      - DB__HOST=db
+      - DB__HOST=${DB_SERVICE_NAME}
       - DB__PORT=${DB_INTERNAL_PORT}
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - fly-net
+      - app-network
 
   db:
-    image: postgres:${POSTGRES_VERSION}
-    container_name: ${COMPOSE_PROJECT_NAME}_db
+    image: ${DB_IMAGE_NAME}:${POSTGRES_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${DB_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    deploy:
+      resources:
+        limits:
+          cpus: '${DB_CPU_LIMIT}'
+          memory: ${DB_MEM_LIMIT}
     environment:
-      # Use our single source of truth (DB__*) to configure the DB service
       - POSTGRES_USER=${DB__USER}
       - POSTGRES_PASSWORD=${DB__PASSWORD}
       - POSTGRES_DB=${DB__NAME}
     ports:
-      - "${DB_EXTERNAL_PORT}:${DB_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${DB_EXTERNAL_PORT}:${DB_INTERNAL_PORT}"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB__USER} -d ${DB__NAME}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
     networks:
-      - fly-net
+      - app-network
     volumes:
-      - fly-db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
 
   cache:
-    image: redis:${REDIS_VERSION}
-    container_name: ${COMPOSE_PROJECT_NAME}_cache
+    image: ${CACHE_IMAGE_NAME}:${REDIS_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${CACHE_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: ${CACHE_MEM_LIMIT}
     ports:
-      - "${REDIS_EXTERNAL_PORT}:${REDIS_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${REDIS_EXTERNAL_PORT}:${REDIS_INTERNAL_PORT}"
     networks:
-      - fly-net
+      - app-network
     volumes:
-      - fly-cache-data:/data
+      - cache-data:/data
 
   db-admin:
-    image: dpage/pgadmin4:${PGADMIN_VERSION}
-    container_name: ${COMPOSE_PROJECT_NAME}_db_admin
+    profiles: ["debug", "admin"]
+    image: ${DB_ADMIN_IMAGE_NAME}:${PGADMIN_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${DB_ADMIN_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    deploy:
+      resources:
+        limits:
+          memory: ${DB_ADMIN_MEM_LIMIT}
     environment:
       - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
       - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
@@ -82,69 +130,79 @@ services:
       - PGADMIN_CONFIG_SERVER_MODE=True
       - PGADMIN_SERVER_JSON_FILE=/pgadmin4/servers.json
       - PGADMIN_REPLACE_SERVERS_ON_STARTUP=True
-      # PGAdmin also maps from our atomic source
       - POSTGRES_USER=${DB__USER}
       - POSTGRES_DB=${DB__NAME}
       - DB_INTERNAL_PORT=${DB_INTERNAL_PORT}
+      - DB_SERVICE_NAME=${DB_SERVICE_NAME}
     entrypoint:
       - "/bin/sh"
       - "-c"
       - "sed \"s/\\$${POSTGRES_USER}/$${POSTGRES_USER}/g; s/\\$${POSTGRES_DB}/$${POSTGRES_DB}/g; s/\\$${DB_INTERNAL_PORT}/$${DB_INTERNAL_PORT}/g\" /pgadmin4/servers.json.template > /pgadmin4/servers.json && /entrypoint.sh"
     ports:
-      - "${PGADMIN_EXTERNAL_PORT}:${PGADMIN_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${PGADMIN_EXTERNAL_PORT}:${PGADMIN_INTERNAL_PORT}"
     networks:
-      - fly-net
+      - app-network
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
-      - fly-db-admin-data:/var/lib/pgadmin
+      - pgadmin-data:/var/lib/pgadmin
       - ./monitoring/pgadmin/servers.json.template:/pgadmin4/servers.json.template
 
   metrics:
-    image: prom/prometheus:${PROMETHEUS_VERSION}
-    container_name: ${COMPOSE_PROJECT_NAME}_metrics
+    profiles: ["observability"]
+    image: ${METRICS_IMAGE_NAME}:${PROMETHEUS_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${METRICS_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
     user: "0:0"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME}'
     ports:
-      - "${PROMETHEUS_EXTERNAL_PORT}:${PROMETHEUS_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${PROMETHEUS_EXTERNAL_PORT}:${PROMETHEUS_INTERNAL_PORT}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
-      - fly-net
-    restart: unless-stopped
+      - app-network
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - fly-metrics-data:/prometheus
+      - prometheus-data:/prometheus
 
   observability:
-    image: grafana/grafana:${GRAFANA_VERSION}
-    container_name: ${COMPOSE_PROJECT_NAME}_observability
+    profiles: ["observability"]
+    image: ${OBSERVABILITY_IMAGE_NAME}:${GRAFANA_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${OBSERVABILITY_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
     user: "0:0"
     ports:
-      - "${GRAFANA_EXTERNAL_PORT}:${GRAFANA_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${GRAFANA_EXTERNAL_PORT}:${GRAFANA_INTERNAL_PORT}"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
-      - fly-net
+      - app-network
     depends_on:
       - metrics
-    restart: unless-stopped
     volumes:
-      - fly-observability-data:/var/lib/grafana
+      - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
 
 volumes:
-  fly-db-data:
-  fly-cache-data:
-  fly-db-admin-data:
-  fly-metrics-data:
-  fly-observability-data:
+  db-data:
+    name: ${VOLUME_DB_DATA}
+  cache-data:
+    name: ${VOLUME_CACHE_DATA}
+  pgadmin-data:
+    name: ${VOLUME_DB_ADMIN_DATA}
+  prometheus-data:
+    name: ${VOLUME_METRICS_DATA}
+  grafana-data:
+    name: ${VOLUME_OBSERVABILITY_DATA}
 
 networks:
-  fly-net:
+  app-network:
+    name: ${PROJECT_NETWORK_NAME}
     driver: bridge

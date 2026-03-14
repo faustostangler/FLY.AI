@@ -4,7 +4,10 @@ from contextlib import contextmanager
 
 from shared.infrastructure.config import settings
 
-engine = create_engine(settings.db.url)
+engine = create_engine(
+    settings.db.url,
+    connect_args={"connect_timeout": settings.db.connection_timeout}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
