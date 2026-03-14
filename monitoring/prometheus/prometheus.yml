@@ -7,6 +7,20 @@ global:
     environment: 'development'
     domain: 'fly_ai'
 
+# ================================================================
+# SRE: Alert Rules & Alertmanager Integration
+# ================================================================
+rule_files:
+  - '/etc/prometheus/alert_rules.yml'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# ================================================================
+# Scrape Configs
+# ================================================================
 scrape_configs:
   # 1. A sua API FastAPI
   - job_name: "fly_api"
@@ -40,3 +54,11 @@ scrape_configs:
       - targets: ["node-exporter:9100"]
         labels:
           component: 'infrastructure_agent'
+
+  # 5. Grafana Tempo (Distributed Traces self-monitoring)
+  - job_name: "tempo"
+    static_configs:
+      - targets: ["traces:3200"]
+        labels:
+          component: 'distributed_traces'
+

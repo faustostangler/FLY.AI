@@ -1,0 +1,251 @@
+# ================================================================
+# Prometheus Alert Rules — SRE Golden Signals + DDD Business Outcomes
+# 
+# Architecture: Rules translate the cognition of Grafana Dashboards
+# (war_room.json, engine_room.json) into proactive automation.
+#
+# Philosophy: An SRE team should NOT discover issues by watching
+# dashboards. Alerts fire BEFORE the user notices.
+# ================================================================
+
+groups:
+  # ==============================================================
+  # 1. SRE GOLDEN SIGNALS (System Health)
+  #    Ref: Google SRE Book — The Four Golden Signals
+  # ==============================================================
+  - name: SRE_Golden_Signals
+    rules:
+      # ---- LATENCY: Is the user suffering? ----
+      - alert: ApiHighLatencyP95
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2.5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          domain: api
+        annotations:
+          summary: "API P95 latency exceeds 2.5s"
+          description: >
+            The 95th percentile response time has exceeded 2.5 seconds
+            for 5 consecutive minutes. Check the War Room dashboard
+            for endpoint-level breakdown.
+          dashboard: "http://localhost:3000/d/war-room"
+
+      - alert: ApiHighLatencyP99
+        expr: >
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 5.0
+        for: 3m
+        labels:
+          severity: critical
+          team: platform
+          domain: api
+        annotations:
+          summary: "API P99 latency exceeds 5s (user impact imminent)"
+          description: >
+            The 99th percentile response time has exceeded 5 seconds.
+            This is above the SLO threshold for user experience.
+            Immediate investigation required.
+
+      # ---- ERRORS: Is the system failing? ----
+      - alert: ApiHighErrorRate
+        expr: >
+          (
+            sum(rate(http_requests_failed_total{error_type=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          domain: api
+        annotations:
+          summary: "HTTP 5xx error rate > 5% (Error Budget burning)"
+          description: >
+            Server error rate has exceeded 5% over the last 2 minutes.
+            The Error Budget is being consumed rapidly.
+            Check the War Room → Error Rate panel.
+
+      - alert: ApiHighClientErrorRate
+        expr: >
+          (
+            sum(rate(http_requests_failed_total{error_type=~"4.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          domain: api
+        annotations:
+          summary: "HTTP 4xx error rate > 20%"
+          description: >
+            Client error rate is abnormally high. This may indicate
+            API contract changes or a misbehaving frontend/integration.
+
+      # ---- TRAFFIC: Is there an anomaly? ----
+      - alert: ApiTrafficDrop
+        expr: >
+          sum(rate(http_requests_total[5m])) == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          domain: api
+        annotations:
+          summary: "API receiving ZERO requests"
+          description: >
+            The API has received no traffic for 5 minutes.
+            This could indicate a DNS/routing failure or upstream issue.
+
+      # ---- SATURATION: Is the system exhausted? ----
+      - alert: HighConcurrency
+        expr: >
+          sum(http_requests_in_flight) > 100
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+          domain: api
+        annotations:
+          summary: "In-flight requests > 100 (possible resource starvation)"
+          description: >
+            More than 100 concurrent requests for 2+ minutes.
+            Risk of thread pool exhaustion and cascading failures.
+
+  # ==============================================================
+  # 2. DDD BUSINESS OUTCOMES (Domain Health)
+  #    Named using Ubiquitous Language from the Bounded Contexts
+  # ==============================================================
+  - name: DDD_Business_Outcomes
+    rules:
+      # ---- B3 Synchronization Domain ----
+      - alert: B3SyncJobFailed
+        expr: >
+          increase(companies_synced_total{status="error"}[15m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: data_engineering
+          domain: companies
+        annotations:
+          summary: "B3 company sync job FAILED"
+          description: >
+            The Worker failed to sync companies from B3.
+            Check the War Room dashboard immediately.
+            TraceID available in Loki logs for distributed debugging.
+          runbook: "Check docker logs fly_worker_company_data_source"
+
+      - alert: B3SyncStalled
+        expr: >
+          increase(companies_synced_total{status="success"}[1h]) == 0
+          and
+          active_sync_tasks_count > 0
+        for: 10m
+        labels:
+          severity: warning
+          team: data_engineering
+          domain: companies
+        annotations:
+          summary: "B3 sync is running but producing zero results"
+          description: >
+            The sync worker is active but hasn't successfully synced
+            any companies in over 1 hour. Likely stuck or rate-limited.
+
+      # ---- Integration Resilience ----
+      - alert: B3RateLimitHit
+        expr: >
+          increase(domain_b3_rate_limit_hits_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          team: data_engineering
+          domain: integration
+        annotations:
+          summary: "B3 rate limit exceeded (>10 HTTP 429 in 5min)"
+          description: >
+            Received more than 10 HTTP 429 responses from B3.
+            The exponential backoff in Playwright may be failing.
+            Risk of IP blocking.
+
+      # ---- Data Quality ----
+      - alert: HighDataValidationErrors
+        expr: >
+          rate(domain_data_validation_errors_total[15m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: data_engineering
+          domain: data_quality
+        annotations:
+          summary: "Spike in data validation errors"
+          description: >
+            Business validation failures (CNPJ, Ticker format, etc.)
+            are occurring at a rate > 1/min. B3 data format may have changed.
+
+      - alert: HighDateParsingFailures
+        expr: >
+          increase(domain_date_parsing_failures_total[15m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          team: data_engineering
+          domain: data_quality
+        annotations:
+          summary: "Date parsing failures spike (>50 in 15min)"
+          description: >
+            The date parser is failing repeatedly. This typically
+            indicates a change in the B3 data source format.
+
+  # ==============================================================
+  # 3. INFRASTRUCTURE HEALTH (Node Exporter / Platform)
+  # ==============================================================
+  - name: Infrastructure_Health
+    rules:
+      - alert: HighCpuUsage
+        expr: >
+          100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          domain: infrastructure
+        annotations:
+          summary: "Host CPU usage > 85% for 10 minutes"
+          description: >
+            Sustained high CPU usage may impact all running services.
+            Check the Node Exporter Full dashboard.
+
+      - alert: HighMemoryUsage
+        expr: >
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          domain: infrastructure
+        annotations:
+          summary: "Host memory usage > 90%"
+          description: >
+            Memory is nearly exhausted. OOM killer may activate.
+            Consider scaling or reducing container memory limits.
+
+      - alert: HighDiskUsage
+        expr: >
+          (1 - node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          domain: infrastructure
+        annotations:
+          summary: "Disk usage > 85%"
+          description: >
+            Disk space is running low. Container logs, Prometheus TSDB,
+            and Tempo traces may fill the disk.

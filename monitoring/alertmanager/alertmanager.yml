@@ -1,0 +1,89 @@
+# ================================================================
+# Prometheus Alertmanager — Route & Receiver Configuration
+# SOTA: Grouped by alertname + environment to reduce noise
+# ================================================================
+#
+# HOW TO CONFIGURE:
+#   1. Replace '<YOUR_SLACK_WEBHOOK_URL>' with your actual Webhook URL
+#   2. For PagerDuty: uncomment the pagerduty_configs section
+#   3. For Email: uncomment and configure the email_configs section
+#
+# NOTE: In development mode, alerts go to the 'dev-null' receiver
+#       (logged but not notified). Switch to 'slack_domain_alerts'
+#       for staging/production.
+# ================================================================
+
+global:
+  resolve_timeout: 5m
+
+# ================================================================
+# ROUTE TREE — How alerts are routed to receivers
+# ================================================================
+route:
+  receiver: 'dev-null'              # Default: silent in dev
+  group_by: ['alertname', 'environment', 'team']
+  group_wait: 30s                   # Wait before sending first notification (batching)
+  group_interval: 5m                # Wait between notifications for same group
+  repeat_interval: 4h               # Re-send if still firing after this interval
+
+  routes:
+    # Critical alerts → immediate notification
+    - match:
+        severity: critical
+      receiver: 'slack_domain_alerts'
+      group_wait: 10s               # Critical = fastest possible notification
+      repeat_interval: 1h
+
+    # Warning alerts → standard notification
+    - match:
+        severity: warning
+      receiver: 'slack_domain_alerts'
+      group_wait: 30s
+      repeat_interval: 4h
+
+# ================================================================
+# RECEIVERS — Where alerts are delivered
+# ================================================================
+receivers:
+  # Silent receiver for development (alerts are logged but not sent)
+  - name: 'dev-null'
+
+  # Slack: Primary notification channel
+  - name: 'slack_domain_alerts'
+    # UNCOMMENT and configure when ready for production:
+    # slack_configs:
+    #   - api_url: '<YOUR_SLACK_WEBHOOK_URL>'
+    #     channel: '#fly-ai-alerts'
+    #     send_resolved: true
+    #     title: >-
+    #       [{{ .Status | toUpper }}{{ if eq .Status "firing" }} × {{ .Alerts.Firing | len }}{{ end }}]
+    #       {{ .GroupLabels.alertname }}
+    #     text: >-
+    #       {{ range .Alerts }}
+    #       *Alert:* {{ .Annotations.summary }}
+    #       *Environment:* {{ .Labels.environment }}
+    #       *Team:* {{ .Labels.team }}
+    #       *Description:* {{ .Annotations.description }}
+    #       *Grafana:* <http://localhost:3000|War Room Dashboard>
+    #       {{ end }}
+
+    # UNCOMMENT for PagerDuty integration:
+    # pagerduty_configs:
+    #   - service_key: '<YOUR_PAGERDUTY_KEY>'
+    #     severity: '{{ .GroupLabels.severity }}'
+
+    # UNCOMMENT for Email integration:
+    # email_configs:
+    #   - to: 'sre-team@flyai.com'
+    #     send_resolved: true
+
+# ================================================================
+# INHIBITION RULES — Prevent noise cascades
+# ================================================================
+inhibit_rules:
+  # If a CRITICAL is firing, suppress the matching WARNING
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'environment']

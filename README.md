@@ -11,6 +11,8 @@ The system is designed to automate the entire lifecycle of financial data ingest
 3.  **NSD (Document Number) Tracking**: Intelligent tracking of financial disclosure sequences to ensure no data is missed.
 4.  **Market & Corporate Events**: Integration with stock prices, splits, and dividend information (Aggregated through Bounded Contexts).
 5.  **High-Performance Ingestion**: Concurrent processing using Playwright with persistent sessions and headless/headful optimization.
+6.  **Distributed Tracing (SOTA)**: Full request visibility from API to Database using OpenTelemetry and Grafana Tempo.
+7.  **SRE Alerting Culture**: Proactive monitoring with Alertmanager based on Golden Signals and Business SLIs.
 
 ## System Architecture
 
@@ -64,7 +66,8 @@ docker compose up -d
 
 - **[Infrastructure Guide](INFRASTRUCTURE.md)**: Deep dive into volumes, networking, and docker roles.
 - **API Docs**: `http://localhost:8001/docs` (when running).
-- **Monitoring**: Grafana (`:3000`, creds: `admin` / `${OBSERVABILITY_PASSWORD}`) and Prometheus (`:9090`).
+- **Monitoring**: Grafana (`:3000`), Prometheus (`:9090`), Loki (Logs), and Tempo (Traces).
+- **Alerting**: Alertmanager (`:9093`) for proactive SLI/SLO notifications.
 
 ## Technologies
 
@@ -74,7 +77,8 @@ docker compose up -d
 - **Playwright**: Resilient browser automation for scraping.
 - **Postgres 16 + Redis 7**: Robust persistence and caching.
 - **uv**: Rust-based package and environment management.
-- **Prometheus + Grafana**: Infrastructure and Business metrics (Golden Signals).
+- **Prometheus + Alertmanager**: Infrastructure and Business metrics with proactive alerting.
+- **Grafana Loki + Tempo**: SOTA Log aggregation and Distributed Tracing (OpenTelemetry).
 
 ## License
 

@@ -16,3 +16,39 @@ datasources:
     url: http://logs-ingestion:3100
     isDefault: false
     editable: true
+    jsonData:
+      derivedFields:
+        - datasourceUid: DS_TEMPO
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: "$${__value.raw}"
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    uid: DS_TEMPO
+    url: http://traces:3200
+    isDefault: false
+    editable: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: DS_LOKI
+        spanStartTimeShift: "-1h"
+        spanEndTimeShift: "1h"
+        filterByTraceID: true
+        filterBySpanID: false
+      tracesToMetrics:
+        datasourceUid: DS_PROMETHEUS
+        spanStartTimeShift: "-1h"
+        spanEndTimeShift: "1h"
+      serviceMap:
+        datasourceUid: DS_PROMETHEUS
+      nodeGraph:
+        enabled: true
+      search:
+        filters:
+          - id: service-name
+            tag: service.name
+            operator: "="
+            scope: resource
+

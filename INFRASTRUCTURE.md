@@ -24,6 +24,8 @@ The project adheres to SOTA practices by using **Managed Docker Volumes** for al
 | **pgAdmin** | Managed Volume | `db-admin-data` | `/var/lib/pgadmin` |
 | **Prometheus**| Managed Volume | `metrics-data` | `/prometheus` |
 | **Grafana** | Managed Volume | `observability-data` | `/var/lib/grafana` |
+| **Tempo**   | Managed Volume | `traces-data` | `/var/tempo` |
+| **Alertmanager** | Managed Volume | `alertmanager-data` | `/alertmanager` |
 
 > [!NOTE]
 > **Bind Mounts** are exclusively used for local configuration files (e.g., `./monitoring/prometheus/prometheus.yml`) to allow immediate updates without rebuilding volumes.
@@ -49,6 +51,11 @@ The project adheres to SOTA practices by using **Managed Docker Volumes** for al
 - **Grafana**:
   - **URL**: `http://localhost:3000`
   - **Credentials**: `admin` / `${OBSERVABILITY_PASSWORD}` (Automatically provisioned).
+- **Grafana Tempo (Traces)**:
+  - **URL**: `http://localhost:3200` (API) | **OTLP**: `4317` (gRPC) / `4318` (HTTP).
+- **Alertmanager**:
+  - **URL**: `http://localhost:9093`
+  - **Status**: Monitors and routes alerts from Prometheus.
 
 ### Application (API)
 - **Local Proxy URL**: `http://localhost:8001`
@@ -110,3 +117,18 @@ The system centralizes all configuration in `src/shared/infrastructure/config.py
 - **Nested Mapping**: Uses double underscores (`__`) in environment variables for nested class mapping. 
   - *Example*: `DB__URL` maps to `settings.db.url`.
 - **Singleton**: The `settings` object is exported for use across the entire Domain and Infrastructure layers.
+
+## 6. SRE Culture and Distributed Tracing (SOTA)
+
+The project implements a full SRE stack for high reliability and rapid diagnosis:
+
+### Distributed Tracing (OpenTelemetry)
+- **Auto-Instrumentation**: FastAPI and SQLAlchemy are automatically instrumented. No tracing code in the Domain layer.
+- **Backend**: Grafana Tempo stores spans for 48h (dev).
+- **Correlation**: Logs in Loki include `trace_id`. Clicking a `trace_id` in Grafana takes you directly to the full distributed trace.
+
+### Proactive Alerting
+- **Golden Signals**: Alerts are based on Latency (P95/P99), Traffic anomalies, Error Rates (5xx), and Saturation.
+- **Business SLIs**: Domain-specific alerts notify the team if the B3 Sync fails or if Rate Limits are hit.
+- **Routing**: Alertmanager groups and routes alerts to avoid "alert fatigue", with inhibition rules for noise reduction.
+

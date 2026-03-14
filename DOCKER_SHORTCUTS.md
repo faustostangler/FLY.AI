@@ -38,6 +38,9 @@ make logs
 make logs-api
 make logs-worker
 make logs-db
+make logs-traces
+make logs-alert
+make logs-collector
 ```
 
 ### Profile Status
@@ -69,6 +72,8 @@ cat .env/profile.env
 | **pgAdmin** | `5050` | [http://localhost:5050](http://localhost:5050) |
 | **Grafana** | `3000` | [http://localhost:3000](http://localhost:3000) |
 | **Prometheus** | `9090` | [http://localhost:9090](http://localhost:9090) |
+| **Alertmanager** | `9093` | [http://localhost:9093](http://localhost:9093) |
+| **Tempo (Traces)** | `3200` | [http://localhost:3200](http://localhost:3200) |
 | **PostgreSQL**| `5432` | `localhost:5432` |
 | **Redis** | `6379` | `localhost:6379` |
 

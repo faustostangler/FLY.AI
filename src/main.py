@@ -11,25 +11,50 @@ from shared.infrastructure.config import settings
 from prometheus_client import make_asgi_app
 # Importamos nossas métricas definidas acima
 from shared.infrastructure.monitoring import metrics 
+from shared.infrastructure.monitoring.tracing import setup_tracing, OTelLogFilter
 
-# --- Logic for Logging SOTA Configuration ---
+# --- Logic for Logging SOTA Configuration (with OTel Trace Correlation) ---
 os.makedirs(settings.app.log_dir, exist_ok=True)
+
+# SOTA: Log format with trace_id and span_id for Loki → Tempo correlation
+LOG_FORMAT = (
+    "%(asctime)s [%(levelname)s] "
+    "[trace_id=%(trace_id)s span_id=%(span_id)s] "
+    "%(name)s: %(message)s"
+)
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s]: %(message)s",
+    format=LOG_FORMAT,
     handlers=[
         logging.FileHandler(f"{settings.app.log_dir}/{settings.app.log_name}"),
         logging.StreamHandler()
     ]
 )
+
+# Attach OTel filter to root logger (all handlers inherit it)
+otel_filter = OTelLogFilter()
+for handler in logging.root.handlers:
+    handler.addFilter(otel_filter)
+
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure tables are created on startup 
-    # (In a real scenario, use Alembic)
+    # 1. Create tables on startup (In production, use Alembic)
     Base.metadata.create_all(bind=engine)
+    
+    # 2. Bootstrap Distributed Tracing (Infrastructure Layer)
+    if settings.otel.enabled:
+        setup_tracing(
+            app=app,
+            engine=engine,
+            service_name=settings.otel.service_name,
+        )
+        logger.info("SRE: Distributed tracing enabled → Grafana Tempo")
+    else:
+        logger.info("SRE: Distributed tracing DISABLED (otel.enabled=False)")
+    
     yield
 
 app = FastAPI(

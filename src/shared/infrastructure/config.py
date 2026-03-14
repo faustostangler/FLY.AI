@@ -133,12 +133,30 @@ class B3Settings(BaseModel):
     model_config = {"extra": "ignore"}
 
 
+class OtelSettings(BaseModel):
+    """OpenTelemetry configuration — Infrastructure layer."""
+    endpoint: str = Field(
+        default="http://tempo:4317",
+        description="OTLP gRPC endpoint for trace export",
+    )
+    service_name: str = Field(
+        default="fly_ai_core",
+        description="OTel service.name resource attribute",
+    )
+    enabled: bool = Field(
+        default=True,
+        description="Master switch for distributed tracing",
+    )
+    model_config = {"extra": "ignore"}
+
+
 class Settings(BaseSettings):
     """Root settings. Loads from .env with __ as nested delimiter."""
     app: AppSettings = AppSettings()
     db: DatabaseSettings
     redis: RedisSettings = RedisSettings()
     b3: B3Settings = B3Settings()
+    otel: OtelSettings = OtelSettings()
 
     model_config = SettingsConfigDict(
         env_file=tuple(ENV_FILES),

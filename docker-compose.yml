@@ -32,6 +32,8 @@ services:
       - DB__PORT=${DB_INTERNAL_PORT}
       - REDIS__HOST=${CACHE_SERVICE_NAME}
       - REDIS__PORT=${CACHE_INTERNAL_PORT}
+      - OTLP_ENDPOINT=${OTLP_ENDPOINT}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME}
             # -----------------------------------------------------------------------
             # ARCHITECT ALERT: LOCAL DEVELOPMENT (LIVE RELOAD)
             # Uncomment the volumes block below to enable live-reload.
@@ -189,8 +191,11 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - app-network
+    depends_on:
+      - alertmanager
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
       - metrics-data:${METRICS_FOLDER}
 
   metrics-ingestion:
@@ -265,10 +270,53 @@ services:
     depends_on:
       - metrics
       - logs-ingestion
+      - traces
+      - alertmanager
       - node-exporter
     volumes:
       - observability-data:${OBSERVABILITY_FOLDER}
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+
+  traces:
+    profiles: ["observability"]
+    image: ${TRACES_IMAGE_NAME}:${TRACES_IMAGE_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${TRACES_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    command: ["-config.file=/etc/tempo.yaml"]
+    deploy:
+      resources:
+        reservations:
+          memory: '${TRACES_MEM_RESERVATION}'
+        limits:
+          memory: '${TRACES_MEM_LIMIT}'
+    ports:
+      - "${DOCKER_BIND_IP}:${TRACES_OTLP_GRPC_PORT}:4317"   # OTLP gRPC receiver
+      - "${DOCKER_BIND_IP}:${TRACES_OTLP_HTTP_PORT}:4318"   # OTLP HTTP receiver
+      - "${DOCKER_BIND_IP}:${TRACES_EXTERNAL_PORT}:${TRACES_INTERNAL_PORT}"  # Tempo API
+    networks:
+      - app-network
+    volumes:
+      - ./monitoring/tempo/tempo.yaml:/etc/tempo.yaml
+      - traces-data:${TRACES_FOLDER}
+
+  alertmanager:
+    profiles: ["observability"]
+    image: ${ALERTMANAGER_IMAGE_NAME}:${ALERTMANAGER_IMAGE_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${ALERTMANAGER_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    deploy:
+      resources:
+        reservations:
+          memory: '${ALERTMANAGER_MEM_RESERVATION}'
+        limits:
+          memory: '${ALERTMANAGER_MEM_LIMIT}'
+    ports:
+      - "${DOCKER_BIND_IP}:${ALERTMANAGER_EXTERNAL_PORT}:${ALERTMANAGER_INTERNAL_PORT}"
+    networks:
+      - app-network
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:${ALERTMANAGER_FOLDER}
 
   node-exporter:
     profiles: ["observability"]
@@ -306,6 +354,10 @@ volumes:
     name: ${COMPOSE_PROJECT_NAME}-${OBSERVABILITY_SERVICE_NAME}-data
   logs-ingestion-data:
     name: ${COMPOSE_PROJECT_NAME}-${LOGS_INGESTION_SERVICE_NAME}-data
+  traces-data:
+    name: ${COMPOSE_PROJECT_NAME}-${TRACES_SERVICE_NAME}-data
+  alertmanager-data:
+    name: ${COMPOSE_PROJECT_NAME}-${ALERTMANAGER_SERVICE_NAME}-data
 
 networks:
   app-network:

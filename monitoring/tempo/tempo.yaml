@@ -1,0 +1,58 @@
+# ================================================================
+# Grafana Tempo v2.7.x — Distributed Traces Backend
+# Mode: Single Binary (optimized for single-node dev/staging)
+# Protocol: OTLP gRPC + HTTP receivers
+# Ref: https://grafana.com/docs/tempo/v2.7.x/configuration/
+# ================================================================
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  log_level: info
+
+# Distributor: Receives spans via OTLP and forwards to ingester
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+# Ingester: Batches and writes traces to storage
+ingester:
+  max_block_duration: 5m
+  trace_idle_period: 10s
+
+# Compactor: Merges blocks for query efficiency
+compactor:
+  compaction:
+    block_retention: 48h    # Retain traces for 2 days in dev
+
+# Storage: Local filesystem (upgrade to S3/GCS in prod)
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+# Metrics Generator: Derives RED metrics from traces (Service Graph)
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      environment: development
+  storage:
+    path: /var/tempo/generator/wal
+    remote_write:
+      - url: http://metrics:9090/api/v1/write
+        send_exemplars: true
+
+# Overrides: Global limits for dev safety
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
