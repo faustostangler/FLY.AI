@@ -1,5 +1,5 @@
-# FLY.AI SOTA Makefile
-# Automation for Modular Monolith Orchestration
+# FLY.AI Makefile
+# Automation for Orchestration
 
 .PHONY: setup up down ps logs shell test sync help
 
@@ -13,21 +13,36 @@ endif
 help:
 	@echo "FLY.AI SOTA Operations"
 	@echo "----------------------"
-	@echo "setup     : Initial environment setup (uv sync, pull images)"
-	@echo "up        : Start services (respects COMPOSE_PROFILES in .env)"
-	@echo "down      : Stop and remove containers"
-	@echo "ps        : List running services"
-	@echo "logs      : Tail all logs"
-	@echo "shell     : Open a shell in the API container"
-	@echo "sync      : Run the B3 company synchronization worker"
-	@echo "build     : Rebuild core images"
+	@echo "setup      : Initial environment setup (uv sync, pull images)"
+	@echo "up         : Start Universal Foundation (API, Worker, DB, Cache)"
+	@echo "up-worker  : Start ONLY the Worker + dependencies (Scale-Out/Staging mode)"
+	@echo "up-admin   : Start Foundation + db-admin (pgAdmin)"
+	@echo "up-obs     : Start Foundation + observability (Prometheus & Grafana)"
+	@echo "down       : Stop and remove all containers"
+	@echo "ps         : List running services"
+	@echo "logs       : Tail all logs"
+	@echo "shell      : Open a shell in the API container"
+	@echo "shell-work : Open a shell in the Worker container"
+	@echo "sync       : Run a one-off synchronization task"
+	@echo "build      : Rebuild core local images"
+
 
 setup:
 	uv sync
-	docker compose pull
+	docker compose pull --ignore-buildable
+	docker compose build
 
 up:
 	docker compose up -d
+
+up-worker:
+	docker compose up -d worker
+
+up-admin:
+	COMPOSE_PROFILES=admin docker compose up -d
+
+up-obs:
+	COMPOSE_PROFILES=observability docker compose up -d
 
 down:
 	docker compose down
@@ -40,6 +55,9 @@ logs:
 
 shell:
 	docker compose exec api /bin/bash
+
+shell-work:
+	docker compose exec worker /bin/bash
 
 sync:
 	docker compose run --rm worker

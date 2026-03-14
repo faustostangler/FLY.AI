@@ -3,8 +3,8 @@ services:
     build:
       context: .
       target: ${DOCKER_BUILD_TARGET}
-    image: ${API_IMAGE_NAME}:${API_VERSION}
-    container_name: ${COMPOSE_PROJECT_NAME}_${API_SERVICE_NAME}
+    image: ${API_IMAGE_NAME}:${API_IMAGE_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${API_IMAGE_NAME}
     restart: ${DOCKER_RESTART_POLICY}
     ports:
       - "${DOCKER_BIND_IP}:${API_EXTERNAL_PORT}:${API_INTERNAL_PORT}"
@@ -28,7 +28,16 @@ services:
       - DB__HOST=${DB_SERVICE_NAME}
       - DB__PORT=${DB_INTERNAL_PORT}
       - REDIS__HOST=${CACHE_SERVICE_NAME}
-      - REDIS__PORT=${REDIS_INTERNAL_PORT}
+      - REDIS__PORT=${CACHE_INTERNAL_PORT}
+            # -----------------------------------------------------------------------
+            # ARCHITECT ALERT: LOCAL DEVELOPMENT (LIVE RELOAD)
+            # Uncomment the volumes block below to enable live-reload.
+            # WARNING: Since the container runs as 'appuser' (not root), ensure your
+            # host directory has the correct permissions if the app needs to write 
+            # files back to the host, otherwise you will get 'Permission Denied'.
+            # -----------------------------------------------------------------------
+            # volumes:
+            #   - ./src:/app/src
     depends_on:
       db:
         condition: service_healthy
@@ -41,14 +50,14 @@ services:
     build:
       context: .
       target: ${DOCKER_BUILD_TARGET}
-    image: ${WORKER_IMAGE_NAME}:${WORKER_VERSION}
-    container_name: ${COMPOSE_PROJECT_NAME}_${WORKER_SERVICE_NAME}
+    image: ${WORKER_COMPANY_IMAGE_NAME}:${WORKER_COMPANY_IMAGE_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${WORKER_COMPANY_SERVICE_NAME}
     restart: ${DOCKER_RESTART_POLICY}
     deploy:
       resources:
         limits:
-          cpus: '${WORKER_CPU_LIMIT}'
-          memory: ${WORKER_MEM_LIMIT}
+          cpus: '${WORKER_COMPANY_CPU_LIMIT}'
+          memory: ${WORKER_COMPANY_MEM_LIMIT}
     logging:
       driver: "json-file"
       options:
@@ -69,7 +78,7 @@ services:
       - app-network
 
   db:
-    image: ${DB_IMAGE_NAME}:${POSTGRES_VERSION}
+    image: ${DB_IMAGE_NAME}:${DB_IMAGE_VERSION}
     container_name: ${COMPOSE_PROJECT_NAME}_${DB_SERVICE_NAME}
     restart: ${DOCKER_RESTART_POLICY}
     deploy:
@@ -91,10 +100,10 @@ services:
     networks:
       - app-network
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:${DB_FOLDER}
 
   cache:
-    image: ${CACHE_IMAGE_NAME}:${REDIS_VERSION}
+    image: ${CACHE_IMAGE_NAME}:${CACHE_IMAGE_VERSION}
     container_name: ${COMPOSE_PROJECT_NAME}_${CACHE_SERVICE_NAME}
     restart: ${DOCKER_RESTART_POLICY}
     command: ["redis-server", "--appendonly", "yes"]
@@ -108,15 +117,15 @@ services:
         limits:
           memory: ${CACHE_MEM_LIMIT}
     ports:
-      - "${DOCKER_BIND_IP}:${REDIS_EXTERNAL_PORT}:${REDIS_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${CACHE_EXTERNAL_PORT}:${CACHE_INTERNAL_PORT}"
     networks:
       - app-network
     volumes:
-      - cache-data:/data
+      - cache-data:${CACHE_FOLDER}
 
   db-admin:
-    profiles: ["debug", "admin"]
-    image: ${DB_ADMIN_IMAGE_NAME}:${PGADMIN_VERSION}
+    profiles: ["admin"]
+    image: ${DB_ADMIN_IMAGE_NAME}:${DB_ADMIN_IMAGE_VERSION}
     container_name: ${COMPOSE_PROJECT_NAME}_${DB_ADMIN_SERVICE_NAME}
     restart: ${DOCKER_RESTART_POLICY}
     deploy:
@@ -124,8 +133,8 @@ services:
         limits:
           memory: ${DB_ADMIN_MEM_LIMIT}
     environment:
-      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
-      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
+      - PGADMIN_DEFAULT_EMAIL=${DB_ADMIN_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${DB_ADMIN_PASSWORD}
       - PGADMIN_SERVER_MODE=True
       - PGADMIN_CONFIG_SERVER_MODE=True
       - PGADMIN_SERVER_JSON_FILE=/pgadmin4/servers.json
@@ -139,19 +148,19 @@ services:
       - "-c"
       - "sed \"s/\\$${POSTGRES_USER}/$${POSTGRES_USER}/g; s/\\$${POSTGRES_DB}/$${POSTGRES_DB}/g; s/\\$${DB_INTERNAL_PORT}/$${DB_INTERNAL_PORT}/g\" /pgadmin4/servers.json.template > /pgadmin4/servers.json && /entrypoint.sh"
     ports:
-      - "${DOCKER_BIND_IP}:${PGADMIN_EXTERNAL_PORT}:${PGADMIN_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${DB_ADMIN_EXTERNAL_PORT}:${DB_ADMIN_INTERNAL_PORT}"
     networks:
       - app-network
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - pgadmin-data:/var/lib/pgadmin
+      - db-admin-data:${DB_ADMIN_FOLDER}
       - ./monitoring/pgadmin/servers.json.template:/pgadmin4/servers.json.template
 
   metrics:
     profiles: ["observability"]
-    image: ${METRICS_IMAGE_NAME}:${PROMETHEUS_VERSION}
+    image: ${METRICS_IMAGE_NAME}:${METRICS_IMAGE_VERSION}
     container_name: ${COMPOSE_PROJECT_NAME}_${METRICS_SERVICE_NAME}
     restart: ${DOCKER_RESTART_POLICY}
     user: "0:0"
@@ -160,49 +169,49 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME}'
+      - '--storage.tsdb.retention.time=${METRICS_RETENTION_TIME}'
     ports:
-      - "${DOCKER_BIND_IP}:${PROMETHEUS_EXTERNAL_PORT}:${PROMETHEUS_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${METRICS_EXTERNAL_PORT}:${METRICS_INTERNAL_PORT}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - app-network
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
+      - metrics-data:${METRICS_FOLDER}
 
   observability:
     profiles: ["observability"]
-    image: ${OBSERVABILITY_IMAGE_NAME}:${GRAFANA_VERSION}
+    image: ${OBSERVABILITY_IMAGE_NAME}:${OBSERVABILITY_IMAGE_VERSION}
     container_name: ${COMPOSE_PROJECT_NAME}_${OBSERVABILITY_SERVICE_NAME}
     restart: ${DOCKER_RESTART_POLICY}
     user: "0:0"
     ports:
-      - "${DOCKER_BIND_IP}:${GRAFANA_EXTERNAL_PORT}:${GRAFANA_INTERNAL_PORT}"
+      - "${DOCKER_BIND_IP}:${OBSERVABILITY_EXTERNAL_PORT}:${OBSERVABILITY_INTERNAL_PORT}"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_SECURITY_ADMIN_PASSWORD=${OBSERVABILITY_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
       - app-network
     depends_on:
       - metrics
     volumes:
-      - grafana-data:/var/lib/grafana
+      - observability-data:${OBSERVABILITY_FOLDER}
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
 
 volumes:
   db-data:
-    name: ${VOLUME_DB_DATA}
+    name: ${COMPOSE_PROJECT_NAME}-${DB_SERVICE_NAME}-data
   cache-data:
-    name: ${VOLUME_CACHE_DATA}
-  pgadmin-data:
-    name: ${VOLUME_DB_ADMIN_DATA}
-  prometheus-data:
-    name: ${VOLUME_METRICS_DATA}
-  grafana-data:
-    name: ${VOLUME_OBSERVABILITY_DATA}
+    name: ${COMPOSE_PROJECT_NAME}-${CACHE_SERVICE_NAME}-data
+  db-admin-data:
+    name: ${COMPOSE_PROJECT_NAME}-${DB_ADMIN_SERVICE_NAME}-data
+  metrics-data:
+    name: ${COMPOSE_PROJECT_NAME}-${METRICS_SERVICE_NAME}-data
+  observability-data:
+    name: ${COMPOSE_PROJECT_NAME}-${OBSERVABILITY_SERVICE_NAME}-data
 
 networks:
   app-network:
-    name: ${PROJECT_NETWORK_NAME}
+    name: ${COMPOSE_PROJECT_NAME}-${PROJECT_NETWORK_NAME}
     driver: bridge

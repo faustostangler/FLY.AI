@@ -30,28 +30,29 @@ FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 
-# 1. Move Playwright path out of /root
+# 1. Set Playwright path and Create User EARLY
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/pw-browsers
+RUN useradd -m appuser && chown appuser:appuser /app
 
-# Install runtime dependencies (libpq for psycopg2, and playwright deps)
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the virtualenv from the builder
-COPY --from=builder /app/.venv /app/.venv
-
-# Ensure we use the virtualenv
+# 2. Optimized COPY: Ownership set during file transfer
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Install Playwright browsers (only chromium for now to keep it small)
-RUN playwright install --with-deps chromium
+# 3. Switch to User BEFORE heavy installs
+USER appuser
 
-# Copy the source code (in case some tools expect it outside venv)
-COPY src/ /app/src/
+# Install Playwright browsers as non-root (faster, safer)
+RUN playwright install chromium
 
-# 2. Create a system user and grant permissions to the folder
+# Copy the source code as appuser
+COPY --chown=appuser:appuser src/ /app/src/
+
 # ==============================================================================
 # ARCHITECT ALERT: NON-ROOT USER & BIND MOUNTS (UID/GID CONFLICTS)
 # ------------------------------------------------------------------------------
@@ -62,15 +63,7 @@ COPY src/ /app/src/
 # for live-reloading in local development, you might face permission denied 
 # errors if 'appuser' tries to write files (like logs or sqlite dbs) to a 
 # folder owned by your host OS user.
-# 
-# FIX: If this happens, pass your host UID/GID as build args to sync permissions, 
-# or use named volumes for writable directories.
 # ==============================================================================
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
 
-# Default port
 EXPOSE 8000
-
-# Command will be overridden in docker-compose for different services
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
