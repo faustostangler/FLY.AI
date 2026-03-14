@@ -1,30 +1,32 @@
-# FLY.AI Docker Quick Reference 🚀
+# FLY.AI Docker Quick Reference
 
 Quick guide for orchestration, monitoring, and debugging the project infrastructure.
 
-## 🛠 Project Lifecycle (via Makefile)
+## Project Lifecycle (via Makefile)
 
 | Command | Action |
 | :--- | :--- |
 | `make setup` | Initial setup (Sync dependencies & Build images) |
-| `make up` | Start Core services (API, DB, Cache) |
-| `make up-admin` | Start Core + **pgAdmin** (DB Dashboard) |
-| `make up-obs` | Start Core + **Observability** (Grafana/Prometheus) |
+| `make up` | Start Foundation (Core + Active Profiles) |
+| `make up-admin` | Start Core + pgAdmin |
+| `make up-obs` | Start Core + Observability (Prometheus/Grafana) |
+| `make up-worker`| Start ONLY the Worker + dependencies |
 | `make build` | Build/Rebuild images |
-| `make rebuild` | Force rebuild images **without cache** |
-| `make down` | Stop and remove all containers |
+| `make rebuild` | Force rebuild images (no-cache) |
+| `make sync` | Run a one-off synchronization task |
+| `make down` | Stop all active services |
 
 ---
 
-## 🔍 Inspection & Monitoring
+## Inspection & Monitoring
 
 ### Status and Ports
 ```bash
 # General status, ports, and health
-docker compose ps
+make ps
 
-# Table view with specific columns
-docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+# Detailed status with specific columns
+make ps-format
 ```
 
 ### Logging
@@ -33,30 +35,31 @@ docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 make logs
 
 # Logs for a specific service
-docker compose logs -f api
-docker compose logs -f db
+make logs-api
+make logs-worker
+make logs-db
 ```
 
 ### Profile Status
 ```bash
-# See which profiles are currently enabled in .env
-docker compose config --profiles
+# Since we use modular environments, checking profiles is done by looking at the profile.env file:
+cat .env/profile.env
 ```
 
 ---
 
-## 💻 Interactive Access
+## Interactive Access
 
 | Target | Command |
 | :--- | :--- |
 | **API Shell** | `make shell` |
 | **Worker Shell** | `make shell-work` |
-| **Database (CLI)** | `docker compose exec db psql -U fly_user_stangler -d fly_b3` |
-| **Redis (CLI)** | `docker compose exec cache redis-cli` |
+| **Database (CLI)** | `make db-cli` |
+| **Redis (CLI)** | `make cache-cli` |
 
 ---
 
-## 🌐 Connectivity Map (Local Access)
+## Connectivity Map (Local Access)
 
 | Service | Port (Host) | Access URL |
 | :--- | :--- | :--- |
@@ -71,7 +74,7 @@ docker compose config --profiles
 
 ---
 
-## 🛣 API Endpoints Reference
+## API Endpoints Reference
 
 All application routes are prefixed with `/api/v1` except for system endpoints.
 
@@ -83,22 +86,24 @@ All application routes are prefixed with `/api/v1` except for system endpoints.
 
 ---
 
-## 🧹 Maintenance & Cleanup
+## Maintenance & Cleanup
 
-### Force Restart a Single Container
+### Selective Reset
 ```bash
-docker compose restart api
+# Stop and remove all containers (force cleanup)
+make down-force
+
+# Restart a single container
+make restart-api
+make restart-worker
 ```
 
-### Critical Reset (Delete Volumes & Data)
+### Deep Cleanup (Destruction)
 > [!CAUTION]
-> This will erase your Database and Redis data. Use only if needed.
-```bash
-docker compose down -v
-```
+> Destroy commands are destructive. **destroy-v** and above will erase your Database and Redis data.
 
-### Full System Cleanup (Prune)
-```bash
-# Removes unused images and data
-docker system prune -a --volumes
-```
+| Command | Scope |
+| :--- | :--- |
+| `make destroy-v` | Removes containers + named volumes (Erase DB data) |
+| `make destroy-im` | Removes containers + volumes + images |
+| `make destroy-all` | Full wipe + Docker system prune -a (The Nuclear Option) |
