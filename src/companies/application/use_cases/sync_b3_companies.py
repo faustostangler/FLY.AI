@@ -1,18 +1,25 @@
 import asyncio
 import logging
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union, cast
 from pydantic import ValidationError
 
 from companies.domain.entities.company import Company
 from companies.domain.ports.b3_data_source import B3DataSource
 from companies.domain.ports.company_repository import CompanyRepository
-from companies.domain.exceptions import CompanyValidationError
+from companies.domain.exceptions import (
+    CompanyValidationError, 
+    CompanyDataValidationError,
+    B3RateLimitExceededError,
+    B3NetworkTimeoutError,
+    CompanySyncError
+)
 from companies.application.dtos.b3_company_dto import B3CompanyPayloadDTO
 from shared.infrastructure.config import settings
 from shared.domain.ports.telemetry_port import TelemetryPort
 from shared.infrastructure.utils.date_resilient import DateResilientParser
 from shared.infrastructure.progress import ProgressReporter
+from shared.domain.utils.result import Result
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +49,6 @@ class SyncB3CompaniesUseCase:
         )
 
         # 3. Merge data for DTO (Anti-Corruption Layer)
-        # We prioritize detailed_info but fallback to basic_info
         payload_data = {
             "ticker": detailed_info.get("issuingCompany") or basic_info.get("issuingCompany"),
             "cvm_code": str(basic_info.get("codeCVM")),
@@ -102,13 +108,13 @@ class SyncB3CompaniesUseCase:
         
         return ticker_codes, isin_codes
 
-    async def _process_single_company(self, index: int, raw_company: Dict[str, Any], semaphore: asyncio.Semaphore, reporter: ProgressReporter) -> Optional[Company]:
-        """Helper to process a single company with error handling and metrics."""
+    async def _process_single_company(self, index: int, raw_company: Dict[str, Any], semaphore: asyncio.Semaphore, reporter: ProgressReporter) -> Result[Company, Exception]:
+        """Helper to process a single company using Result Monad."""
         ticker = raw_company.get("issuingCompany")
         cvm_code = str(raw_company.get("codeCVM"))
         
         if not ticker or not cvm_code.isdigit():
-            return None
+            return Result.fail(CompanyDataValidationError("Missing Ticker or invalid CVM", "cvm_code", ticker))
             
         async with semaphore:
             try:
@@ -118,29 +124,30 @@ class SyncB3CompaniesUseCase:
                 # 2. Application: Mapping & Validation (DTO -> Entity)
                 entity = self._map_b3_payload_to_entity(raw_company, details)
                 
-                logger.info(reporter.get_formatted_progress(index, [ticker]))
-                return entity
-            except (ValidationError, TypeError) as e:
-                logger.error(f"SOTA Edge: Sanitization/Parsing failed for {ticker}: {e}")
-                # Potentially track "Dirty Data" metric here
-                return None
+                logger.debug(reporter.get_formatted_progress(index, [ticker]))
+                return Result.ok(entity)
+            except ValidationError as e:
+                return Result.fail(CompanyDataValidationError(f"DTO Validation failed: {e}", "multiple", ticker))
             except CompanyValidationError as e:
-                logger.error(f"Domain Rule Violation for {ticker}: {e}")
-                # Potentially track "Business Rule Violation" metric here
-                return None
+                return Result.fail(e)
+            except B3RateLimitExceededError as e:
+                return Result.fail(e)
+            except (asyncio.TimeoutError, TimeoutError):
+                return Result.fail(B3NetworkTimeoutError(f"Timeout fetching details for {ticker} ({cvm_code})"))
             except Exception as e:
-                logger.error(f"Unexpected error processing {ticker} ({cvm_code}): {e}")
-                return None
+                # Catch-all for unexpected infrastructure level errors
+                return Result.fail(e)
 
     async def execute(self) -> None:
         """
-        Main execution flow with SOTA concurrency:
+        Main execution flow with SOTA concurrency and Result Monad:
         1. Fetch all companies listed.
         2. Fetch details for each company concurrently with rate limiting.
-        3. Map to Domain Entities via DTOs.
-        4. Save to Repository in high-performance batches.
+        3. Handle failures via Monadic Result (No Pokemon Exception Handling).
+        4. Report detailed SRE metrics based on error taxonomy.
+        5. Save successes to Repository.
         """
-        logger.info("Starting B3 Companies Synchronization (SOTA Rich Domain Mode)")
+        logger.info("Starting B3 Companies Synchronization (SOTA Result Monad Mode)")
         start_time = time.perf_counter()
         
         # 1. SATURATION: Mark task as active
@@ -148,10 +155,9 @@ class SyncB3CompaniesUseCase:
         
         try:
             async with self._data_source:
-                # 1. Fetch the raw initial list
+                # Fetch the raw initial list
                 initial_companies = await self._data_source.fetch_initial_companies()
                 
-                # Using concurrency from centralized configuration
                 semaphore = asyncio.Semaphore(settings.app.max_concurrency)
                 reporter = ProgressReporter(total=len(initial_companies))
                 
@@ -162,37 +168,50 @@ class SyncB3CompaniesUseCase:
                 ]
                 results = await asyncio.gather(*tasks)
                 
-                # Filter out None results from skips or errors
-                entities_to_save = [e for e in results if e is not None]
-                        
-                # 4. Persistence
-                if entities_to_save:
-                    # Deduplicate by ticker to prevent conflicts within the same batch
-                    unique_entities = list({e.ticker: e for e in entities_to_save}.values())
-                    logger.info(f"Saving {len(unique_entities)} unique companies to the repository.")
+                # Unpack Monad
+                success_list: List[Company] = []
+                failure_list: List[Exception] = []
+                
+                for r in results:
+                    if r.is_success and r.value:
+                        success_list.append(r.value)
+                    elif r.is_failure and r.error:
+                        failure_list.append(r.error)
+                
+                # 2. SRE: Telemetry for Errors (Taxonomy-driven)
+                for error in failure_list:
+                    if isinstance(error, CompanyDataValidationError):
+                        # Use cast to help Pyre identify the attributes
+                        val_error = cast(CompanyDataValidationError, error)
+                        self._telemetry.increment_data_validation_error(
+                            entity="Company", field=val_error.field, reason="b3_payload_mismatch"
+                        )
+                    elif isinstance(error, CompanyValidationError):
+                        self._telemetry.increment_data_validation_error(
+                            entity="Company", field="domain_logic", reason="business_rule_violation"
+                        )
+                    elif isinstance(error, B3RateLimitExceededError):
+                        self._telemetry.increment_b3_rate_limit_hits()
+                    elif isinstance(error, B3NetworkTimeoutError):
+                        self._telemetry.increment_generic_sync_error(type="NetworkTimeout")
+                    else:
+                        self._telemetry.increment_generic_sync_error(type=error.__class__.__name__)
+                
+                # 3. Persistence & Outcome Telemetry
+                if success_list:
+                    # Deduplicate by ticker
+                    unique_entities = list({e.ticker: e for e in success_list}.values())
+                    logger.info(f"Persistence: Saving {len(unique_entities)} unique companies.")
                     self._repository.save_batch(unique_entities)
-                    
-                    # 2. BUSINESS OUTCOMES: Telemetry
                     self._telemetry.increment_companies_synced(count=len(unique_entities), status="success")
-                    
-                    # 3. MARKET INSIGHTS: Update snapshot gauges
-                    sectors = {}
-                    listings = {}
-                    for e in unique_entities:
-                        if e.sector:
-                            sectors[e.sector] = sectors.get(e.sector, 0) + 1
-                        if e.listing:
-                            listings[e.listing] = listings.get(e.listing, 0) + 1
-                    
-                    for sector, count in sectors.items():
-                        self._telemetry.set_companies_by_sector(sector=sector, count=count)
-                    for listing, count in listings.items():
-                        self._telemetry.set_companies_by_segment(segment=listing, count=count)
-            
+                
+                if failure_list:
+                    logger.warning(f"SRE Alert: {len(failure_list)} companies failed synchronization.")
+                    self._telemetry.increment_companies_synced(count=len(failure_list), status="failed")
+
             duration = time.perf_counter() - start_time
             self._telemetry.observe_sync_duration(context="companies", duration=duration)
-            logger.info(f"Synchronization completed successfully in {duration:.2f}s.")
+            logger.info(f"Synchronization finished in {duration:.2f}s.")
             
         finally:
-            # Always decrement saturation gauge
             self._telemetry.decrement_active_sync_tasks()

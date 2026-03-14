@@ -36,3 +36,11 @@ class TelemetryPort(ABC):
     @abstractmethod
     def increment_network_transmit_bytes(self, direction: str, context: str, payload_size: int) -> None:
         pass
+
+    @abstractmethod
+    def increment_data_validation_error(self, entity: str, field: str, reason: str) -> None:
+        pass
+
+    @abstractmethod
+    def increment_generic_sync_error(self, type: str) -> None:
+        pass

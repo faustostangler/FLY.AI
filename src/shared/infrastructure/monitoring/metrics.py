@@ -104,6 +104,13 @@ DATA_VALIDATION_ERRORS = Counter(
     ["entity", "field", "reason"]
 )
 
+# ERRORS & FAILURES
+GENERIC_SYNC_ERRORS = Counter(
+    "domain_sync_errors_total",
+    "Total generic or unexpected failures during synchronization",
+    ["type"]
+)
+
 # INTEGRATION EFFICIENCY
 B3_RATE_LIMIT_HITS = Counter(
     "domain_b3_rate_limit_hits_total",

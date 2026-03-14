@@ -153,3 +153,6 @@ data/
 
 # tests
 *.meta.env
+
+# Docker
+docker-compose.override.yml
