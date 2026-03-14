@@ -8,9 +8,15 @@ services:
       - APP_ENV=${APP_ENV}
       - APP__DEBUG=${APP__DEBUG}
       - LOG_LEVEL=${LOG_LEVEL}
-      # Assemble the connection string using dynamic variables
-      - DB__URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${DB_INTERNAL_PORT}/${POSTGRES_DB}
-      - REDIS__URL=redis://cache:${REDIS_INTERNAL_PORT}/0
+      # Database: Point to 'db' service container
+      - DB__USER=${DB__USER}
+      - DB__PASSWORD=${DB__PASSWORD}
+      - DB__NAME=${DB__NAME}
+      - DB__HOST=db
+      - DB__PORT=${DB_INTERNAL_PORT}
+      # Redis: Point to 'cache' service container
+      - REDIS__HOST=cache
+      - REDIS__PORT=${REDIS_INTERNAL_PORT}
     depends_on:
       db:
         condition: service_healthy
@@ -25,7 +31,11 @@ services:
     command: ["python", "-m", "src.shared.presentation.cli", "sync-companies"]
     environment:
       - APP_ENV=${APP_ENV}
-      - DB__URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${DB_INTERNAL_PORT}/${POSTGRES_DB}
+      - DB__USER=${DB__USER}
+      - DB__PASSWORD=${DB__PASSWORD}
+      - DB__NAME=${DB__NAME}
+      - DB__HOST=db
+      - DB__PORT=${DB_INTERNAL_PORT}
     depends_on:
       db:
         condition: service_healthy
@@ -36,13 +46,14 @@ services:
     image: postgres:${POSTGRES_VERSION}
     container_name: ${COMPOSE_PROJECT_NAME}_db
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      # Use our single source of truth (DB__*) to configure the DB service
+      - POSTGRES_USER=${DB__USER}
+      - POSTGRES_PASSWORD=${DB__PASSWORD}
+      - POSTGRES_DB=${DB__NAME}
     ports:
       - "${DB_EXTERNAL_PORT}:${DB_INTERNAL_PORT}"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB__USER} -d ${DB__NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -71,8 +82,9 @@ services:
       - PGADMIN_CONFIG_SERVER_MODE=True
       - PGADMIN_SERVER_JSON_FILE=/pgadmin4/servers.json
       - PGADMIN_REPLACE_SERVERS_ON_STARTUP=True
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_DB=${POSTGRES_DB}
+      # PGAdmin also maps from our atomic source
+      - POSTGRES_USER=${DB__USER}
+      - POSTGRES_DB=${DB__NAME}
       - DB_INTERNAL_PORT=${DB_INTERNAL_PORT}
     entrypoint:
       - "/bin/sh"
