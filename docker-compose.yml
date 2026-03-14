@@ -34,6 +34,7 @@ services:
       - REDIS__PORT=${CACHE_INTERNAL_PORT}
       - OTLP_ENDPOINT=${OTLP_ENDPOINT}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME}
+      - OTEL_EXCLUDED_URLS=${OTEL_EXCLUDED_URLS}
             # -----------------------------------------------------------------------
             # ARCHITECT ALERT: LOCAL DEVELOPMENT (LIVE RELOAD)
             # Uncomment the volumes block below to enable live-reload.
