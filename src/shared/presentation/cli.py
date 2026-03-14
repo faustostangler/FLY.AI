@@ -78,6 +78,19 @@ async def _run_sync_companies():
     finally:
         session.close()
         logger.info("Worker: Database session closed.")
+        
+        # SOTA: EMPURRAR PARA O PUSHGATEWAY ANTES DO CONTÊINER MORRER
+        from prometheus_client import push_to_gateway, REGISTRY
+        pushgateway_url = os.getenv("PUSHGATEWAY_URL", "http://metrics-ingestion:9091")
+        
+        try:
+            logger.info(f"Empurrando métricas para o Pushgateway em {pushgateway_url}...")
+            # 'job' é a etiqueta que agrupará essas métricas lá no Prometheus
+            push_to_gateway(pushgateway_url, job='worker_sync_companies', registry=REGISTRY)
+            logger.info("Métricas empurradas com sucesso para o Pushgateway (metrics-ingestion).")
+        except Exception as pg_error:
+            # Não queremos que uma falha na telemetria quebre o job principal, apenas logamos
+            logger.error(f"Falha ao enviar métricas para o Pushgateway (metrics-ingestion): {pg_error}")
 
 
 async def main():

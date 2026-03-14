@@ -85,7 +85,7 @@ class PlaywrightB3DataSource(B3DataSource):
                     }
                 )
                 if response.status == 429:
-                    metrics.b3_rate_limit_hits.inc()
+                    metrics.B3_RATE_LIMIT_HITS.inc()
                     raise Exception(f"Rate limited by B3 (429) on initial fetch. Payload: {payload}")
                 
                 if not response.ok:
@@ -93,7 +93,7 @@ class PlaywrightB3DataSource(B3DataSource):
 
                 body = await response.body()
                 payload_size = len(body)
-                metrics.network_transmit_bytes_total.labels(direction="inbound", context="b3_initial").inc(payload_size)
+                metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction="inbound", context="b3_initial").inc(payload_size)
 
                 data = json.loads(body)
                 if page_num == 1:
@@ -131,7 +131,7 @@ class PlaywrightB3DataSource(B3DataSource):
             
             body = await response.body()
             payload_size = len(body)
-            metrics.network_transmit_bytes_total.labels(direction="inbound", context="b3_detail").inc(payload_size)
+            metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction="inbound", context="b3_detail").inc(payload_size)
             
             return json.loads(body)
         finally:

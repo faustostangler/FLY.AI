@@ -1,8 +1,42 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  # Labels externas que serão coladas em TODAS as métricas coletadas
+  # Excelente para quando você tiver múltiplos ambientes (dev, hmg, prod)
+  external_labels:
+    environment: 'development'
+    domain: 'fly_ai'
 
 scrape_configs:
+  # 1. A sua API FastAPI
   - job_name: "fly_api"
+    # Opcional: Se a sua rota fosse diferente, você mudaria aqui. O padrão é /metrics
+    metrics_path: '/metrics'
     static_configs:
       - targets: ["api:8000"]
+        labels:
+          # Adiciona contexto de arquitetura
+          component: 'core_api'
+
+  # 2. O próprio Prometheus (Metamonitoramento)
+  # Como saber se o sistema de monitoramento está engasgado? Monitorando ele mesmo!
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          component: 'observability_engine'
+
+  # 3. Configuração SOTA para o Pushgateway (agora renomeado para metrics-ingestion)
+  - job_name: "metrics-ingestion"
+    # honor_labels é CRÍTICO! Garante que o Prometheus confie nas labels 
+    # enviadas pelo Worker, e não sobrescreva com as labels do próprio gateway.
+    honor_labels: true 
+    static_configs:
+      - targets: ["metrics-ingestion:9091"]
+
+  # 4. Agent SOTA de Hardware e SO Linux
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          component: 'infrastructure_agent'

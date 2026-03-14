@@ -1,119 +1,160 @@
-from prometheus_client import Counter, Histogram, Gauge, REGISTRY
+import math
+from prometheus_client import Counter, Histogram, Gauge
 
-class MetricsProvider:
+def get_buckets(min_val: float = 1, max_val: float = 100, step: float = 0.1):
     """
-    Centralized Prometheus metrics provider for FLY.AI.
-    Implements the Four Golden Signals and Domain-Driven Metrics.
+    Gera buckets em escala logarítmica de min_val até max_val.
+    O step representa o incremento no expoente (base 10).
+    Ex: step=0.3 ~= fator de 2.
     """
-    _instance = None
-    _registry = REGISTRY
+    if min_val <= 0:
+        raise ValueError("min_val deve ser maior que 0 para escala logarítmica")
     
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(MetricsProvider, cls).__new__(cls)
-            cls._instance._init_metrics()
-        return cls._instance
+    start_exp = math.log10(min_val)
+    end_exp = math.log10(max_val)
     
-    def _init_metrics(self):
-        # ======================================================================
-        # 1. THE FOUR GOLDEN SIGNALS (System Health)
-        # ======================================================================
-        
-        # LATENCY: The time it takes to service a request
-        self.http_request_duration_seconds = Histogram(
-            "http_request_duration_seconds",
-            "Latency of HTTP requests in seconds",
-            ["method", "endpoint"]
-        )
-        
-        # TRAFFIC: Demand placed on the system
-        self.http_requests_total = Counter(
-            "http_requests_total",
-            "Total number of HTTP requests handled",
-            ["method", "endpoint", "status"]
-        )
-        
-        # ERRORS: The rate of requests that fail
-        self.http_requests_failed_total = Counter(
-            "http_requests_failed_total",
-            "Total number of HTTP requests that resulted in an error",
-            ["method", "endpoint", "error_type"]
-        )
-        
-        # NETWORK: Payload and transmission sizes
-        self.http_response_size_bytes = Histogram(
-            "http_response_size_bytes",
-            "Size of HTTP responses in bytes",
-            ["method", "endpoint"],
-            buckets=[128, 512, 1024, 5120, 10240, 51200, 102400, 512000, 1048576, 5242880]
-        )
-        
-        self.network_transmit_bytes_total = Counter(
-            "network_transmit_bytes_total",
-            "Total network traffic transmitted in bytes",
-            ["direction", "context"] # direction='inbound' (download) or 'outbound' (api response)
-        )
-        
-        # SATURATION: How 'full' the service is
-        self.active_sync_tasks = Gauge(
-            "active_sync_tasks_count",
-            "Number of background synchronization tasks currently running"
-        )
-        
-        # ======================================================================
-        # 2. DOMAIN METRICS (Ubiquitous Language & Business Outcomes)
-        # ======================================================================
-        
-        # DATA QUALITY: Resilience monitoring
-        self.date_parsing_failures = Counter(
-            "domain_date_parsing_failures_total",
-            "Total number of failures during date string parsing (Data Quality)",
-            ["field", "source"]
-        )
-        
-        self.data_validation_errors = Counter(
-            "domain_data_validation_errors_total",
-            "Total business validation failures (CNPJ, Ticker format, etc)",
-            ["entity", "field", "reason"]
-        )
-        
-        # BUSINESS LIFECYCLE: Tracking market events
-        self.entities_synced_total = Counter(
-            "domain_entities_synced_total",
-            "Total companies successfully synchronized with the database",
-            ["context", "source"]
-        )
-        
-        self.new_issuers_discovered = Counter(
-            "domain_new_issuers_discovered_total",
-            "Number of brand new companies discovered in the latest sync"
-        )
-        
-        # INTEGRATION EFFICIENCY: Provider health
-        self.b3_rate_limit_hits = Counter(
-            "domain_b3_rate_limit_hits_total",
-            "Total HTTP 429 received from B3 Data Source"
-        )
-        
-        # MARKET INSIGHTS: High-level business state
-        self.companies_by_sector = Gauge(
-            "domain_companies_by_sector_count",
-            "Snapshot of company distribution by economic sector",
-            ["sector"]
-        )
-        
-        self.companies_by_segment = Gauge(
-            "domain_companies_by_segment_count",
-            "Snapshot of company distribution by B3 listing segment",
-            ["segment"]
-        )
+    # +1e-9 para mitigar imprecisões de float no cálculo do range
+    num_steps = int((end_exp - start_exp) / step + 1e-9) + 1
+    return tuple(round(10 ** (start_exp + i * step), 4) for i in range(num_steps))
 
-        # Legacy/Support
-        self.sync_duration_seconds = Histogram(
-            "sync_duration_seconds",
-            "Time spent in the synchronization use case",
-            ["context"]
-        )
+# ======================================================================
+# 1. THE FOUR GOLDEN SIGNALS (System Health)
+# ======================================================================
 
-# Global metrics accessibility
-metrics = MetricsProvider()
+# LATENCY (Histogramas com buckets realistas para API)
+HTTP_REQUEST_DURATION = Histogram(
+    "http_request_duration_seconds",
+    "Tempo de resposta da API em segundos",
+    ["method", "endpoint"],
+    buckets=get_buckets(0.01, 20.0, step=0.1)
+)
+
+# TRAFFIC
+HTTP_REQUESTS_TOTAL = Counter(
+    "http_requests_total",
+    "Total de requisições HTTP recebidas",
+    ["method", "endpoint", "status"]
+)
+
+# ERRORS
+HTTP_REQUESTS_FAILED_TOTAL = Counter(
+    "http_requests_failed_total",
+    "Total de requisições que resultaram em erro",
+    ["method", "endpoint", "error_type"]
+)
+
+# CONCURRENCY (In-Flight Requests)
+IN_FLIGHT_REQUESTS = Gauge(
+    "http_requests_in_flight",
+    "Quantidade de requisições HTTP sendo processadas no momento",
+    ["method", "endpoint"]
+)
+
+# PAYLOAD SIZES (Request)
+HTTP_REQUEST_SIZE = Histogram(
+    "http_request_size_bytes",
+    "Tamanho do payload da requisição HTTP em bytes",
+    ["method", "endpoint"],
+    buckets=get_buckets(128, 1048576 * 10, step=0.6)
+)
+
+# SATURATION (Métrica de Domínio / Infra)
+DB_CONNECTIONS_ACTIVE = Gauge(
+    "db_connections_active",
+    "Quantidade de conexões ativas no pool do banco de dados",
+    ["database"]
+)
+
+# ======================================================================
+# 2. DOMAIN METRICS (Ubiquitous Language & Business Outcomes)
+# ======================================================================
+
+# BUSINESS OUTCOMES
+COMPANIES_SYNCED_TOTAL = Counter(
+    "companies_synced_total",
+    "Total de empresas sincronizadas pelo worker",
+    ["status"]
+)
+
+# Legacy compatibility / Additional Domain Metrics
+ENTITIES_SYNCED_TOTAL = COMPANIES_SYNCED_TOTAL # Alias if needed, but we'll update uses
+
+ACTIVE_SYNC_TASKS = Gauge(
+    "active_sync_tasks_count",
+    "Number of background synchronization tasks currently running"
+)
+
+SYNC_DURATION_SECONDS = Histogram(
+    "sync_duration_seconds",
+    "Time spent in the synchronization use case",
+    ["context"],
+    buckets=get_buckets(0.1, 1800.0, step=0.3)
+)
+
+# DATA QUALITY
+DATE_PARSING_FAILURES = Counter(
+    "domain_date_parsing_failures_total",
+    "Total number of failures during date string parsing (Data Quality)",
+    ["field", "source"]
+)
+
+DATA_VALIDATION_ERRORS = Counter(
+    "domain_data_validation_errors_total",
+    "Total business validation failures (CNPJ, Ticker format, etc)",
+    ["entity", "field", "reason"]
+)
+
+# INTEGRATION EFFICIENCY
+B3_RATE_LIMIT_HITS = Counter(
+    "domain_b3_rate_limit_hits_total",
+    "Total HTTP 429 received from B3 Data Source"
+)
+
+# NETWORK / INFRA
+NETWORK_TRANSMIT_BYTES_TOTAL = Counter(
+    "network_transmit_bytes_total",
+    "Total network traffic transmitted in bytes",
+    ["direction", "context"]
+)
+
+HTTP_RESPONSE_SIZE = Histogram(
+    "http_response_size_bytes",
+    "Size of HTTP responses in bytes",
+    ["method", "endpoint"],
+    buckets=get_buckets(128, 1048576 * 10, step=0.6)
+)
+
+# MARKET INSIGHTS
+COMPANIES_BY_SECTOR = Gauge(
+    "domain_companies_by_sector_count",
+    "Snapshot of company distribution by economic sector",
+    ["sector"]
+)
+
+COMPANIES_BY_SEGMENT = Gauge(
+    "domain_companies_by_segment_count",
+    "Snapshot of company distribution by B3 listing segment",
+    ["segment"]
+)
+
+NEW_ISSUERS_DISCOVERED = Counter(
+    "domain_new_issuers_discovered_total",
+    "Number of brand new companies discovered in the latest sync"
+)
+
+# ======================================================================
+# 3. APP INFO (Deployment Tracking)
+# ======================================================================
+import os
+from shared.infrastructure.config import settings
+
+APP_INFO = Gauge(
+    "app_info",
+    "Informações estáticas sobre a aplicação (versão, ambiente)",
+    ["version", "environment"]
+)
+
+# Seta o valor estático logo na inicialização
+# Pode usar 'development' como fallback se APP_ENV não estiver setado
+env = os.getenv("APP_ENV", "development")
+APP_INFO.labels(version=getattr(settings.app, "version", "unknown"), environment=env).set(1)

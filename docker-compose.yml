@@ -193,6 +193,61 @@ services:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - metrics-data:${METRICS_FOLDER}
 
+  metrics-ingestion:
+    profiles: ["observability"]
+    image: ${METRICS_INGESTION_IMAGE_NAME}:${METRICS_INGESTION_IMAGE_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${METRICS_INGESTION_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    deploy:
+      resources:
+        reservations:
+          memory: '${METRICS_INGESTION_MEM_RESERVATION}'
+        limits:
+          memory: '${METRICS_INGESTION_MEM_LIMIT}'
+    ports:
+      - "${DOCKER_BIND_IP}:${METRICS_INGESTION_EXTERNAL_PORT}:${METRICS_INGESTION_INTERNAL_PORT}"
+    networks:
+      - app-network
+
+  logs-ingestion:
+    profiles: ["observability"]
+    image: ${LOGS_INGESTION_IMAGE_NAME}:${LOGS_INGESTION_IMAGE_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${LOGS_INGESTION_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    ports:
+      - "${DOCKER_BIND_IP}:${LOGS_INGESTION_EXTERNAL_PORT}:${LOGS_INGESTION_INTERNAL_PORT}"
+    networks:
+      - app-network
+    command: -config.file=/etc/loki/local-config.yaml
+    deploy:
+      resources:
+        reservations:
+          memory: '${LOGS_INGESTION_MEM_RESERVATION}'
+        limits:
+          memory: '${LOGS_INGESTION_MEM_LIMIT}'
+    volumes:
+      - logs-ingestion-data:${LOGS_INGESTION_FOLDER}
+
+  logs-collector:
+    profiles: ["observability"]
+    image: ${LOGS_COLLECTOR_IMAGE_NAME}:${LOGS_COLLECTOR_IMAGE_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${LOGS_COLLECTOR_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - app-network
+    deploy:
+      resources:
+        reservations:
+          memory: '${LOGS_COLLECTOR_MEM_RESERVATION}'
+        limits:
+          memory: '${LOGS_COLLECTOR_MEM_LIMIT}'
+
   observability:
     profiles: ["observability"]
     image: ${OBSERVABILITY_IMAGE_NAME}:${OBSERVABILITY_IMAGE_VERSION}
@@ -209,9 +264,34 @@ services:
       - app-network
     depends_on:
       - metrics
+      - logs-ingestion
+      - node-exporter
     volumes:
       - observability-data:${OBSERVABILITY_FOLDER}
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+
+  node-exporter:
+    profiles: ["observability"]
+    image: ${INFRASTRUCTURE_AGENT_IMAGE_NAME}:${INFRASTRUCTURE_AGENT_IMAGE_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}_${INFRASTRUCTURE_AGENT_SERVICE_NAME}
+    restart: ${DOCKER_RESTART_POLICY}
+    deploy:
+      resources:
+        reservations:
+          memory: '${INFRASTRUCTURE_AGENT_MEM_RESERVATION}'
+        limits:
+          memory: '${INFRASTRUCTURE_AGENT_MEM_LIMIT}'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - app-network
 
 volumes:
   db-data:
@@ -224,6 +304,8 @@ volumes:
     name: ${COMPOSE_PROJECT_NAME}-${METRICS_SERVICE_NAME}-data
   observability-data:
     name: ${COMPOSE_PROJECT_NAME}-${OBSERVABILITY_SERVICE_NAME}-data
+  logs-ingestion-data:
+    name: ${COMPOSE_PROJECT_NAME}-${LOGS_INGESTION_SERVICE_NAME}-data
 
 networks:
   app-network:

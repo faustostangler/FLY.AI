@@ -106,7 +106,7 @@ class SyncB3CompaniesUseCase:
         start_time = time.perf_counter()
         
         # 1. SATURATION: Mark task as active
-        metrics.active_sync_tasks.inc()
+        metrics.ACTIVE_SYNC_TASKS.inc()
         
         try:
             async with self._data_source:
@@ -153,7 +153,7 @@ class SyncB3CompaniesUseCase:
                     self._repository.save_batch(unique_entities)
                     
                     # 2. BUSINESS OUTCOMES: Telemetry
-                    metrics.entities_synced_total.labels(context="companies", source="b3").inc(len(unique_entities))
+                    metrics.COMPANIES_SYNCED_TOTAL.labels(status="success").inc(len(unique_entities))
                     
                     # 3. MARKET INSIGHTS: Update snapshot gauges
                     # Note: In a real system, these would be aggregated from the DB periodically
@@ -167,14 +167,14 @@ class SyncB3CompaniesUseCase:
                             segments[e.listing] = segments.get(e.listing, 0) + 1
                     
                     for sector, count in sectors.items():
-                        metrics.companies_by_sector.labels(sector=sector).set(count)
+                        metrics.COMPANIES_BY_SECTOR.labels(sector=sector).set(count)
                     for segment, count in segments.items():
-                        metrics.companies_by_segment.labels(segment=segment).set(count)
+                        metrics.COMPANIES_BY_SEGMENT.labels(segment=segment).set(count)
             
             duration = time.perf_counter() - start_time
-            metrics.sync_duration_seconds.labels(context="companies").observe(duration)
+            metrics.SYNC_DURATION_SECONDS.labels(context="companies").observe(duration)
             logger.info(f"Synchronization completed successfully in {duration:.2f}s.")
             
         finally:
             # Always decrement saturation gauge
-            metrics.active_sync_tasks.dec()
+            metrics.ACTIVE_SYNC_TASKS.dec()

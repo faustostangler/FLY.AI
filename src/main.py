@@ -1,7 +1,5 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from starlette.responses import Response
 from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.database.connection import engine
 from companies.infrastructure.adapters.database.models import Base
@@ -10,14 +8,15 @@ import logging
 import os
 import time
 from shared.infrastructure.config import settings
-from shared.infrastructure.monitoring.metrics import metrics
+from prometheus_client import make_asgi_app
+# Importamos nossas métricas definidas acima
+from shared.infrastructure.monitoring import metrics 
 
 # --- Logic for Logging SOTA Configuration ---
 os.makedirs(settings.app.log_dir, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
-    # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     format="%(asctime)s [%(levelname)s]: %(message)s",
     handlers=[
         logging.FileHandler(f"{settings.app.log_dir}/{settings.app.log_name}"),
@@ -25,7 +24,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-# --------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,59 +39,72 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# --- SOTA Observability Middleware (Golden Signals) ---
+# 1. Adicionamos a rota /metrics para o Prometheus raspar (Default + Custom)
+# O make_asgi_app() já traz as Default Metrics do Python por padrão 
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
 @app.middleware("http")
 async def prometheus_middleware(request: Request, call_next):
-    # Traffic & Latency Logic
+    # Ignorar a própria rota de métricas para não sujar os dados
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
     method = request.method
-    path = request.url.path
+    # SOTA Tip: Use o template da rota (ex: /users/{id}) em vez da URL real
+    path = request.scope.get("route").path if request.scope.get("route") else request.url.path
     
-    # Start timer
+    # 1. IN-FLIGHT (Concorrência): Incrementa ao entrar
+    metrics.IN_FLIGHT_REQUESTS.labels(method=method, endpoint=path).inc()
+    
+    # 2. PAYLOAD SIZE (Request): Sempre registrar bytes de entrada
+    request_content_length = request.headers.get("content-length")
+    if request_content_length:
+        try:
+            req_size = int(request_content_length)
+            metrics.HTTP_REQUEST_SIZE.labels(method=method, endpoint=path).observe(req_size)
+            metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction="inbound", context="api").inc(req_size)
+        except ValueError:
+            pass
+
     start_time = time.perf_counter()
     
     try:
         response = await call_next(request)
         duration = time.perf_counter() - start_time
-        
-        # Labels for labels
         status_code = str(response.status_code)
         
-        # 1. LATENCY
-        metrics.http_request_duration_seconds.labels(method=method, endpoint=path).observe(duration)
+        # 3. Registrando Sinais de Ouro e Duração
+        metrics.HTTP_REQUEST_DURATION.labels(method=method, endpoint=path).observe(duration)
+        metrics.HTTP_REQUESTS_TOTAL.labels(method=method, endpoint=path, status=status_code).inc()
         
-        # 2. TRAFFIC
-        metrics.http_requests_total.labels(method=method, endpoint=path, status=status_code).inc()
-
-        # 4. NETWORK (Outbound)
+        # 4. PAYLOAD SIZE (Response): Sempre registrar bytes de saída
         content_length = response.headers.get("content-length")
         if content_length:
-            resp_size = int(content_length)
-            metrics.http_response_size_bytes.labels(method=method, endpoint=path).observe(resp_size)
-            metrics.network_transmit_bytes_total.labels(direction="outbound", context="api").inc(resp_size)
-        
-        # 3. ERRORS (Non-2xx/3xx)
+            try:
+                resp_size = int(content_length)
+                metrics.HTTP_RESPONSE_SIZE.labels(method=method, endpoint=path).observe(resp_size)
+                metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction="outbound", context="api").inc(resp_size)
+            except ValueError:
+                pass
+
         if response.status_code >= 400:
-            metrics.http_requests_failed_total.labels(
-                method=method, 
-                endpoint=path, 
-                error_type=status_code
+            metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
+                method=method, endpoint=path, error_type=status_code
             ).inc()
             
         return response
         
     except Exception as e:
-        # Capture unexpected crashes as Errors
-        metrics.http_requests_failed_total.labels(
-            method=method, 
-            endpoint=path, 
-            error_type=type(e).__name__
+        # Erros Críticos (500)
+        metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
+            method=method, endpoint=path, error_type=type(e).__name__
         ).inc()
         raise e
-
-@app.get("/metrics")
-def metrics_endpoint():
-    """Exposes Prometheus metrics for scraping."""
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+        
+    finally:
+        # 1. IN-FLIGHT (Concorrência): Decrementa sempre ao sair (Garante consistência matemática)
+        metrics.IN_FLIGHT_REQUESTS.labels(method=method, endpoint=path).dec()
 
 @app.get("/health")
 def health_check():
