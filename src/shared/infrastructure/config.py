@@ -6,12 +6,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Dynamic Environment Discovery from env/ folder
 # Last file in the tuple has precedence in Pydantic Settings.
-ENV_FILES = sorted(glob.glob(".env/*.env"))
+ENV_FILES = sorted(glob.glob(".envs/*.env"))
 
 # Ensure profile.env is last if it exists (for ORM/Profile overrides)
-if ".env/profile.env" in ENV_FILES:
-    ENV_FILES.remove(".env/profile.env")
-    ENV_FILES.append(".env/profile.env")
+if ".envs/profile.env" in ENV_FILES:
+    ENV_FILES.remove(".envs/profile.env")
+    ENV_FILES.append(".envs/profile.env")
 
 
 class AppSettings(BaseModel):

@@ -4,7 +4,7 @@
 .PHONY: setup up down ps ps-format logs shell test sync help db-cli cache-cli
 
 # --- Zero-Touch Modular Environment Loading ---
-ENV_FILES := $(wildcard .env/*.env)
+ENV_FILES := $(wildcard .envs/*.env)
 
 # Load into Make context for variable expansion
 include $(ENV_FILES)
