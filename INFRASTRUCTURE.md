@@ -32,15 +32,15 @@ The project adheres to SOTA practices by using **Managed Docker Volumes** for al
 
 ### Infrastructure Services
 - **PostgreSQL (`db`)**:
-  - **Internal URL**: `postgresql://fly_user_stangler:fly_pass_stangler_secure_123!@db:5432/fly_b3`
+  - **Internal URL**: `postgresql://${DB__USER}:${DB__PASSWORD}@db:5432/${DB__NAME}`
   - **External Access**: `localhost:5432`
-  - **Credentials**: User: `fly_user_stangler` | Pass: `fly_pass_stangler_secure_123!` | DB: `fly_b3`
+  - **Credentials**: User: `${DB__USER}` | Pass: `${DB__PASSWORD}` | DB: `${DB__NAME}`
 - **Redis (`cache`)**:
   - **Internal URL**: `redis://cache:6379/0`
   - **External Access**: `localhost:6379`
 - **pgAdmin (DB Dashboard)**:
   - **URL**: `http://localhost:5050`
-  - **Login**: `admin@fly.ai` | **Password**: `admin_pass_secure`
+  - **Login**: `${DB_ADMIN_EMAIL}` | **Password**: `${DB_ADMIN_PASSWORD}`
 
 ### Monitoring and Observability
 - **Prometheus**:
@@ -48,7 +48,7 @@ The project adheres to SOTA practices by using **Managed Docker Volumes** for al
   - **Scrape Target**: Monitors `api:8000`.
 - **Grafana**:
   - **URL**: `http://localhost:3000`
-  - **Credentials**: `admin` / `observability_pass_stangler` (Automatically provisioned).
+  - **Credentials**: `admin` / `${OBSERVABILITY_PASSWORD}` (Automatically provisioned).
 
 ### Application (API)
 - **Local Proxy URL**: `http://localhost:8001`

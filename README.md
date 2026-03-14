@@ -64,7 +64,7 @@ docker compose up -d
 
 - **[Infrastructure Guide](INFRASTRUCTURE.md)**: Deep dive into volumes, networking, and docker roles.
 - **API Docs**: `http://localhost:8001/docs` (when running).
-- **Monitoring**: Grafana (`:3000`, creds: `admin`/`observability_pass_stangler`) and Prometheus (`:9090`).
+- **Monitoring**: Grafana (`:3000`, creds: `admin` / `${OBSERVABILITY_PASSWORD}`) and Prometheus (`:9090`).
 
 ## Technologies
 
