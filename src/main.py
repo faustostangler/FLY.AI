@@ -9,14 +9,16 @@ import os
 import time
 from shared.infrastructure.config import settings
 from prometheus_client import make_asgi_app
-# Importamos nossas métricas definidas acima
 from shared.infrastructure.monitoring import metrics 
 from shared.infrastructure.monitoring.tracing import setup_tracing, OTelLogFilter
 
-# --- Logic for Logging SOTA Configuration (with OTel Trace Correlation) ---
+# Ensure the logging directory exists before initializing file handlers.
+# Standard fail-fast principle during infrastructure bootstrap.
 os.makedirs(settings.app.log_dir, exist_ok=True)
 
-# SOTA: Log format with trace_id and span_id for Loki → Tempo correlation
+# Standardized Log format for observability.
+# Injecting trace_id and span_id allows seamless correlation between 
+# logs in Loki and distributed traces in Tempo.
 LOG_FORMAT = (
     "%(asctime)s [%(levelname)s] "
     "[trace_id=%(trace_id)s span_id=%(span_id)s] "
@@ -32,7 +34,7 @@ logging.basicConfig(
     ]
 )
 
-# Attach OTel filter to root logger (all handlers inherit it)
+# Apply the OTel filter to global logging logic.
 otel_filter = OTelLogFilter()
 for handler in logging.root.handlers:
     handler.addFilter(otel_filter)
@@ -41,10 +43,17 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Create tables on startup (In production, use Alembic)
+    """Manages Application Startup and Shutdown lifecycles.
+
+    Nested Logical Steps:
+        1. Database Bootstrap: Synchronize base models with pgStore.
+        2. Telemetry Bootstrap: Initialize OpenTelemetry auto-instrumentation.
+    """
+    # Create tables automatically. 
+    # TODO(Issue-Arch): Transition to Alembic for production migrations.
     Base.metadata.create_all(bind=engine)
     
-    # 2. Bootstrap Distributed Tracing (Infrastructure Layer)
+    # Bootstrap Distributed Tracing if enabled in settings.
     if settings.otel.enabled:
         setup_tracing(
             app=app,
@@ -64,25 +73,35 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# 1. Adicionamos a rota /metrics para o Prometheus raspar (Default + Custom)
-# O make_asgi_app() já traz as Default Metrics do Python por padrão 
+# Mount the Prometheus exporter on the /metrics sub-path.
+# Separation of concerns between domain APIs and infrastructure telemetry.
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 @app.middleware("http")
 async def prometheus_middleware(request: Request, call_next):
-    # Ignorar a própria rota de métricas para não sujar os dados
+    """Captures 'The Four Golden Signals' for every HTTP transaction.
+
+    This middleware ensures that throughput, latency, errors, and 
+    saturation are measured consistently across the entire API surface.
+
+    Args:
+        request (Request): The incoming FastAPI request.
+        call_next: The next handler in the ASGI chain.
+    """
+    # Prevent the scraper from scraping its own scraper metrics.
     if request.url.path == "/metrics":
         return await call_next(request)
 
     method = request.method
-    # SOTA Tip: Use o template da rota (ex: /users/{id}) em vez da URL real
+    # Use the route template (e.g., /api/v1/companies/{ticker}) to avoid 
+    # cardinality explosion in Prometheus labels.
     path = request.scope.get("route").path if request.scope.get("route") else request.url.path
     
-    # 1. IN-FLIGHT (Concorrência): Incrementa ao entrar
+    # 1. SATURATION/CONCURRENCY: Track active requests.
     metrics.IN_FLIGHT_REQUESTS.labels(method=method, endpoint=path).inc()
     
-    # 2. PAYLOAD SIZE (Request): Sempre registrar bytes de entrada
+    # 2. TRAFFIC: Inbound payload measurement.
     request_content_length = request.headers.get("content-length")
     if request_content_length:
         try:
@@ -99,11 +118,11 @@ async def prometheus_middleware(request: Request, call_next):
         duration = time.perf_counter() - start_time
         status_code = str(response.status_code)
         
-        # 3. Registrando Sinais de Ouro e Duração
+        # 3. LATENCY & THROUGHPUT: Observe performance per endpoint/status.
         metrics.HTTP_REQUEST_DURATION.labels(method=method, endpoint=path).observe(duration)
         metrics.HTTP_REQUESTS_TOTAL.labels(method=method, endpoint=path, status=status_code).inc()
         
-        # 4. PAYLOAD SIZE (Response): Sempre registrar bytes de saída
+        # 4. TRAFFIC: Outbound payload measurement.
         content_length = response.headers.get("content-length")
         if content_length:
             try:
@@ -113,6 +132,7 @@ async def prometheus_middleware(request: Request, call_next):
             except ValueError:
                 pass
 
+        # 5. ERRORS: Track non-2xx status codes for SLI calculation.
         if response.status_code >= 400:
             metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
                 method=method, endpoint=path, error_type=status_code
@@ -121,23 +141,25 @@ async def prometheus_middleware(request: Request, call_next):
         return response
         
     except Exception as e:
-        # Erros Críticos (500)
+        # Track unhandled exceptions as critical errors (Type 500 equivalent).
         metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
             method=method, endpoint=path, error_type=type(e).__name__
         ).inc()
         raise e
         
     finally:
-        # 1. IN-FLIGHT (Concorrência): Decrementa sempre ao sair (Garante consistência matemática)
+        # Decrement concurrency gauge to maintain mathematical consistency.
         metrics.IN_FLIGHT_REQUESTS.labels(method=method, endpoint=path).dec()
 
 @app.get("/health")
 def health_check():
+    """Liveness probe for infrastructure health (K8s/Docker)."""
     return {"status": "ok", "message": "FLY.AI Core operational"}
 
-# Register Domain Routers
+# Register Domain Bounded Contexts.
+# Keeps the API surface modular as we add new domains.
 app.include_router(companies_router, prefix="/api/v1")
 
-# Future routers
+# Future Domain Modules placeholders:
 # app.include_router(financials_router, prefix="/api/v1")
 # app.include_router(market_data_router, prefix="/api/v1")

@@ -5,16 +5,29 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # Dynamic Environment Discovery from env/ folder
-# Last file in the tuple has precedence in Pydantic Settings.
+# Precedence follows the order in the tuple; last file overrides previous ones.
 ENV_FILES = sorted(glob.glob(".envs/*.env"))
 
-# Ensure profile.env is last if it exists (for ORM/Profile overrides)
+# Ensure profile.env is last to allow runtime/environment-specific overrides
+# to take precedence over baseline configurations.
 if ".envs/profile.env" in ENV_FILES:
     ENV_FILES.remove(".envs/profile.env")
     ENV_FILES.append(".envs/profile.env")
 
 
 class AppSettings(BaseModel):
+    """General application metadata and operational limits.
+
+    Attributes:
+        title (str): The human-readable name of the platform.
+        description (str): A brief overview of the system's purpose.
+        version (str): The current SemVer of the application.
+        debug (bool): Flag to enable/disable detailed error reporting.
+        headless (bool): Controls whether the B3 Scraper UI is visible during execution.
+        max_concurrency (int): Throughput limit to prevent rate-limiting or resource exhaustion.
+        log_dir (str): Directory where structural logs are persisted.
+        log_name (str): Filename for primary application logs.
+    """
     title: str = "FLY.AI Finance Data"
     description: str = "SOTA Finance Data Platform using DDD and Hexagonal Architecture"
     version: str = "0.2.0"
@@ -27,10 +40,20 @@ class AppSettings(BaseModel):
 
 
 class DatabaseSettings(BaseModel):
+    """Persistence configurations for the Primary Relational Store.
+
+    Ensures type safety between environment variables and SQLAlchemy drivers
+    by validating connection strings or assembling them from atomic credentials.
+
+    Attributes:
+        url (str): The full JDBC/SQLAlchemy connection string.
+        user (str): Database username.
+        password (str): Database password.
+        name (str): The specific database name/schema to connect to.
+        host (str): Network address of the database server.
+        port (int): Listening port for the database service.
+        connection_timeout (int): Grace period before failing a connection attempt.
     """
-    SOTA Database Config: Strict Type Hinting & Anti-Shadowing.
-    """
-    # 1. Defined as str from the start (no Optional). Ends MyPy/SQLAlchemy issues.
     url: str = Field(description="Full connection string (Strictly typed as str)")
     
     user: Optional[str] = Field(default=None, description="DB user (DB__USER)")
@@ -42,10 +65,25 @@ class DatabaseSettings(BaseModel):
 
     model_config = {"extra": "ignore", "populate_by_name": True}
 
-    # 2. mode='before' intercepts BEFORE validation
     @model_validator(mode='before')
     @classmethod
     def assemble_or_validate(cls, values: dict) -> dict:
+        """Assembles the SQLAlchemy URL from atomic fields if the full URL is not provided.
+
+        This ensures a Single Source of Truth (SSOT) for the connection string,
+        preventing configuration drift where credentials in individual fields 
+        differ from the one in the full URL.
+
+        Args:
+            values (dict): Raw input data from environment variables or .env files.
+
+        Returns:
+            dict: The validated and potentially augmented configuration dictionary.
+
+        Raises:
+            ValueError: If both partial credentials and a full URL are provided,
+                or if neither is sufficient to establish a connection.
+        """
         url = values.get('url')
         user = values.get('user')
         password = values.get('password')
@@ -57,7 +95,7 @@ class DatabaseSettings(BaseModel):
         has_atomic_credentials = bool(user or password or name)
         is_fully_atomic = bool(user and password and name)
 
-        # Fail-Fast: Prevents the developer from making conflicting configurations in .env
+        # Fail-Fast to prevent ambiguous configuration states.
         if url and has_atomic_credentials:
             raise ValueError(
                 "CRITICAL CONFIG CONFLICT: Choose to provide EITHER 'DB__URL' OR "
@@ -68,6 +106,7 @@ class DatabaseSettings(BaseModel):
             return values
         
         if is_fully_atomic:
+             # Construct canonical URL for SQLAlchemy engine initialization.
             values['url'] = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
             return values
             
@@ -75,8 +114,15 @@ class DatabaseSettings(BaseModel):
 
 
 class RedisSettings(BaseModel):
-    """
-    SOTA Redis Config: Strict Type Hinting & Anti-Shadowing.
+    """Configuration for the Distributed Cache and Synchronization layer.
+
+    Used primarily for rate limiting and cross-worker state management.
+
+    Attributes:
+        url (str): The full Redis connection string.
+        host (str): Network address of the Redis server.
+        port (int): Listening port for the Redis service.
+        db (int): Logical database index within the Redis instance.
     """
     url: str = Field(description="Full Redis URL (Strictly typed as str)")
     
@@ -89,6 +135,20 @@ class RedisSettings(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def assemble_redis_url(cls, values: dict) -> dict:
+        """Enforces a canonical Redis URL for uniform adapter initialization.
+
+        Providing multiple ways to define the connection can lead to 
+        hard-to-debug misconfigurations in distributed environments.
+
+        Args:
+            values (dict): Input configuration data.
+
+        Returns:
+            dict: Validated configuration.
+
+        Raises:
+            ValueError: If configuration is ambiguous or insufficient.
+        """
         url = values.get('url')
         host = values.get('host', 'localhost')
         port = values.get('port', 6379)
@@ -110,6 +170,18 @@ class RedisSettings(BaseModel):
 
 
 class B3Settings(BaseModel):
+    """Constants and endpoints for the B3 External Data Source (Brazilian Stock Exchange).
+
+    Encapsulates knowledge about B3's internal API structure and data quality rules.
+
+    Attributes:
+        homepage_url (str): Entry point for the Playwright scraper.
+        initial_companies_api (str): B3 endpoint for fetching the initial company list.
+        detail_api (str): Endpoint for fine-grained company metadata.
+        financial_api (str): Endpoint for downloading historical financial reports.
+        words_to_remove (list[str]): Noise phrases found in B3 data that must be scrubbed
+            to maintain Domain integrity (e.g., 'EM RECUPERACAO JUDICIAL').
+    """
     homepage_url: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesPage/?language=pt-br"
     initial_companies_api: str = (
         "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetInitialCompanies/"
@@ -134,7 +206,15 @@ class B3Settings(BaseModel):
 
 
 class OtelSettings(BaseModel):
-    """OpenTelemetry configuration — Infrastructure layer."""
+    """OpenTelemetry configuration for Distributed Tracing and Observability.
+
+    Integrates with Grafana Tempo/Loki for full request lifecycle visibility.
+
+    Attributes:
+        endpoint (str): The OTLP gRPC endpoint for trace ingestion.
+        service_name (str): Identifier for this service within the trace topology.
+        enabled (bool): Toggle for telemetry collection to avoid overhead in lean environments.
+    """
     endpoint: str = Field(
         default="http://tempo:4317",
         description="OTLP gRPC endpoint for trace export",
@@ -151,7 +231,11 @@ class OtelSettings(BaseModel):
 
 
 class Settings(BaseSettings):
-    """Root settings. Loads from .env with __ as nested delimiter."""
+    """Root configuration object orchestrating all system parameters.
+
+    Utilizes __ as a nested delimiter to allow environment variables like
+    APP__DEBUG=true to be mapped to settings.app.debug.
+    """
     app: AppSettings = AppSettings()
     db: DatabaseSettings
     redis: RedisSettings = RedisSettings()
@@ -167,5 +251,7 @@ class Settings(BaseSettings):
     )
 
 
-# Singleton — fails fast at import if required env vars are missing
+# System-wide Settings Singleton.
+# Initialized at import-time to enforce a Fail-Fast startup strategy if 
+# critical environment variables (like DB credentials) are missing.
 settings = Settings()

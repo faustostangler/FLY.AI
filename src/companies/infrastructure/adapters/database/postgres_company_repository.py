@@ -8,15 +8,27 @@ from companies.infrastructure.adapters.database.models import CompanyModel
 from companies.infrastructure.adapters.database.mapper import CompanyDataMapper
 
 class PostgresCompanyRepository(CompanyRepository):
-    """
-    SOTA Implementation: 100% focused on I/O and optimized SQL queries.
-    Uses Data Mapper to isolate domain/infrastructure translation.
+    """PostgreSQL implementation of the CompanyRepository port.
+
+    This adapter provides high-performance persistence using native 
+    PostgreSQL features (UPSERT) while keeping the Domain decoupled from 
+    relational schemas through the use of Data Mappers.
+
+    Attributes:
+        session (Session): An active SQLAlchemy session for transaction management.
     """
     def __init__(self, session: Session):
         self._session = session
 
     def save(self, company: Company) -> None:
-        """Saves or updates a single company using UPSERT."""
+        """Persists or updates an issuer using an atomic UPSERT operation.
+
+        Relying on native 'ON CONFLICT' clauses ensures atomicity and 
+        prevents race conditions during concurrent updates of the same ticker.
+
+        Args:
+            company (Company): The domain entity to be persisted.
+        """
         data = CompanyDataMapper.to_persistence_dict(company)
         
         stmt = insert(CompanyModel).values(data)
@@ -29,19 +41,27 @@ class PostgresCompanyRepository(CompanyRepository):
         self._session.commit()
 
     def save_batch(self, companies: List[Company]) -> None:
-        """
-        Saves or updates companies in batch using PostgreSQL native UPSERT.
-        Optimized via Data Mapper for clean persistence dictionaries.
+        """Executes a bulk UPSERT for a collection of issuers.
+
+        During full-market synchronizations, individual inserts are 
+        prohibitively slow. Native batch UPSERTs reduce I/O wait times 
+        by orders of magnitude.
+
+        Args:
+            companies (List[Company]): A sequence of domain entities.
         """
         if not companies:
             return
             
+        # Transform domain entities into flat dictionaries compatible with the ORM.
         data_list = [CompanyDataMapper.to_persistence_dict(company) for company in companies]
         
-        # Standard PostgreSQL UPSERT logic
+        # Standard PostgreSQL UPSERT logic (ON CONFLICT DO UPDATE).
         stmt = insert(CompanyModel).values(data_list)
         
-        # Define what to update on conflict
+        # Calculate update columns dynamically from the model definition.
+        # This automatically handles schema changes without requiring 
+        # manual updates to the repository logic.
         update_cols = {
             c.name: stmt.excluded[c.name] 
             for c in CompanyModel.__table__.columns 
@@ -57,11 +77,24 @@ class PostgresCompanyRepository(CompanyRepository):
         self._session.commit()
 
     def get_by_ticker(self, ticker: str) -> Optional[Company]:
-        """Fetches a company by ticker and maps it to a Domain Entity."""
+        """Retrieves an issuer by its primary symbol.
+
+        Args:
+            ticker (str): The ticker symbol to search for.
+
+        Returns:
+            Optional[Company]: A reconstructed domain entity or None.
+        """
         model = self._session.query(CompanyModel).filter(CompanyModel.ticker == ticker).first()
         return CompanyDataMapper.to_entity(model) if model else None
 
     def get_all(self) -> List[Company]:
-        """Fetches all companies and maps them to Domain Entities."""
+        """Loads all issuer records from the database.
+
+        Used primarily for populating caches or during full-system audits.
+
+        Returns:
+            List[Company]: A list of hydrated domain entities.
+        """
         models = self._session.query(CompanyModel).all()
         return [CompanyDataMapper.to_entity(m) for m in models]

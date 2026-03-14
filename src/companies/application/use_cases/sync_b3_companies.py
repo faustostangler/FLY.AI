@@ -24,19 +24,46 @@ from shared.domain.utils.result import Result
 logger = logging.getLogger(__name__)
 
 class SyncB3CompaniesUseCase:
+    """Application Use Case for synchronizing the B3 Issuer Catalog.
+
+    This use case serves as the primary orchestrator for the B3 Bounded Context. 
+    It ensures that raw data from external scraping is refined through an 
+    Anti-Corruption Layer (ACL) before being admitted into the Domain.
     """
-    Application Use Case to synchronize the list of companies from B3
-    into the database using the data source and repository ports.
-    """
-    def __init__(self, data_source: B3DataSource, repository: CompanyRepository, telemetry: TelemetryPort):
+    def __init__(
+        self, 
+        data_source: B3DataSource, 
+        repository: CompanyRepository, 
+        telemetry: TelemetryPort
+    ):
+        """Initializes the use case with required Ports.
+        
+        Args:
+            data_source (B3DataSource): Port for fetching market data.
+            repository (CompanyRepository): Port for persisting validated entities.
+            telemetry (TelemetryPort): Port for capturing SRE and business metrics.
+        """
         self._data_source = data_source
         self._repository = repository
         self._telemetry = telemetry
         
-    def _map_b3_payload_to_entity(self, basic_info: Dict[str, Any], detailed_info: Dict[str, Any]) -> Company:
-        """
-        Maps raw JSON from B3 into the Company domain entity via DTO.
-        Includes fallbacks and conversions matching the Domain rules.
+    def _map_b3_payload_to_entity(
+        self, 
+        basic_info: Dict[str, Any], 
+        detailed_info: Dict[str, Any]
+    ) -> Company:
+        """Transforms raw multi-source B3 payloads into a unique Domain Entity.
+
+        Acts as the core of the Anti-Corruption Layer (ACL). It isolates 
+        the domain from the volatile and often inconsistent JSON structures 
+        returned by the B3 private APIs.
+
+        Args:
+            basic_info (Dict[str, Any]): Summary data from the initial listing.
+            detailed_info (Dict[str, Any]): Granular metadata from the detail API.
+
+        Returns:
+            Company: A hydrated and validated Domain Entity.
         """
         # 1. Process Industry Classification (Sector / Subsector / Segment)
         sector, subsector, segment = self._parse_industry_classification(
@@ -139,13 +166,14 @@ class SyncB3CompaniesUseCase:
                 return Result.fail(e)
 
     async def execute(self) -> None:
-        """
-        Main execution flow with SOTA concurrency and Result Monad:
-        1. Fetch all companies listed.
-        2. Fetch details for each company concurrently with rate limiting.
-        3. Handle failures via Monadic Result (No Pokemon Exception Handling).
-        4. Report detailed SRE metrics based on error taxonomy.
-        5. Save successes to Repository.
+        """Executes the complete synchronization workflow.
+
+        Nested Logical Steps:
+            1. Saturation tracking: Increment active task gauge.
+            2. Data Discovery: Fetch the initial issuer list.
+            3. Concurrency Orchestration: Execute detail probes via semaphore.
+            4. Error Taxonomy: Categorize failures for proactive alerting.
+            5. Persistence: Commit valid entities to the repository in bulk.
         """
         logger.info("Starting B3 Companies Synchronization (SOTA Result Monad Mode)")
         start_time = time.perf_counter()

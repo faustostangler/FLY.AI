@@ -1,17 +1,9 @@
-"""
-OpenTelemetry Tracing Setup — Hexagonal Infrastructure Layer.
+"""OpenTelemetry Tracing Setup — Distributed Observability Infrastructure.
 
-This module belongs to the Infrastructure layer (Ports & Adapters).
-The Domain remains pure and framework-independent.
-
-Responsibilities:
-    1. Configure TracerProvider with OTLP exporter → Grafana Tempo.
-    2. Auto-instrument FastAPI (HTTP spans) and SQLAlchemy (DB spans).
-    3. Inject trace_id/span_id into Python logs for Loki correlation.
-
-Usage:
-    from shared.infrastructure.monitoring.tracing import setup_tracing
-    setup_tracing(app=fastapi_app)
+This module assembles the tracing pipeline, connecting the system to 
+Grafana Tempo for distributed tracing and Loki for log correlation.
+Strict adherence to Hexagonal Architecture ensures that the Domain layer 
+remains pure and unaware of this instrumentation.
 """
 
 import logging
@@ -30,79 +22,87 @@ from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 logger = logging.getLogger(__name__)
 
 
-# =========================================================================
-# 1. OTel Log Filter — Injects trace_id & span_id into every log record
-# =========================================================================
-
 class OTelLogFilter(logging.Filter):
-    """
-    Logging filter that enriches log records with OpenTelemetry context.
+    """Enriches log records with OpenTelemetry context for correlation.
 
-    When there is an active span, the trace_id and span_id are injected
-    into the log record. This enables the Loki → Tempo correlation:
-    clicking a trace_id in Grafana Explore opens the full distributed trace.
+    Injected Trace IDs and Span IDs allow for seamless pivoting between 
+    logs in Loki and traces in Tempo within Grafana. Without this correlation, 
+    debugging distributed failures becomes a needle-in-a-haystack operation.
 
-    Format placeholders: %(trace_id)s, %(span_id)s
+    Format placeholders available for log formatters: %(trace_id)s, %(span_id)s
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Injects OTel metadata into every LogRecord passed through this filter.
+
+        Standard logging doesn't know about the current execution context. 
+        We extract it here to ensure every log line is traceable.
+
+        Args:
+            record (logging.LogRecord): The log record to be enriched.
+
+        Returns:
+            bool: Always True to allow the record to propagate.
+        """
         span = trace.get_current_span()
         ctx = span.get_span_context()
 
+        # If we have an active, recordable span, inject hex-encoded IDs.
         if span.is_recording() and ctx.trace_id != 0:
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
+            # Provide zeroed defaults to avoid KeyError in format strings 
+            # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
 
         return True
 
 
-# =========================================================================
-# 2. Tracing Setup — Pure Infrastructure Wiring
-# =========================================================================
-
 def setup_tracing(
     app: Optional[object] = None,
     engine: Optional[object] = None,
     service_name: Optional[str] = None,
 ) -> None:
-    """
-    Bootstrap OpenTelemetry distributed tracing.
+    """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
+
+    Centralizing tracing setup in a single entry point ensures consistent 
+    resource attributes and exporter configurations across all system roles 
+    (API, Scraper, Worker).
 
     Args:
-        app: FastAPI application instance (for HTTP auto-instrumentation).
-        engine: SQLAlchemy engine instance (for DB auto-instrumentation).
-        service_name: Override for the OTel service.name resource attribute.
-                      Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
+        app (Optional[object]): FastAPI application instance for HTTP instrumentation.
+        engine (Optional[object]): SQLAlchemy engine instance for SQL query spans.
+        service_name (Optional[str]): Human-readable identifier for the service.
+            Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
-    Architecture Note:
-        This function is called ONCE at application startup (lifespan).
-        It configures the global TracerProvider and instruments adapters.
-        The Domain layer has ZERO knowledge of tracing.
+    Note:
+        This function is idempotent and should be called once during the 
+        application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
-    # --- Resource: Identity of this service in the trace ecosystem ---
+    # Identity Registry: Defines how this service appears in the infrastructure map.
     resource = Resource.create({
         SERVICE_NAME: resolved_name,
         "deployment.environment": environment,
         "service.namespace": "fly_ai",
     })
 
-    # --- TracerProvider: Central orchestrator ---
+    # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
 
-    # --- OTLP Exporter → Grafana Tempo (gRPC, insecure for docker-compose) ---
+    # OTLP / gRPC Exporter: Sends telemetry to the collector (Tempo).
     otlp_endpoint = os.getenv("OTLP_ENDPOINT", "http://tempo:4317")
 
     try:
         exporter = OTLPSpanExporter(
             endpoint=otlp_endpoint,
-            insecure=True,
+            insecure=True,  # Communication within the docker-compose network.
         )
+        # Using a Batch processor to minimize the performance impact on hot paths.
         processor = BatchSpanProcessor(exporter)
         provider.add_span_processor(processor)
         logger.info(
@@ -112,27 +112,30 @@ def setup_tracing(
             environment,
         )
     except Exception as exc:
+        # We fail gracefully here to prevent an observability outage from
+        # taking down the actual business processing.
         logger.warning(
             "OTel exporter failed to initialize (traces will be dropped): %s",
             exc,
         )
 
-    # --- Set global provider ---
+    # Activate the provider globally so libraries can retrieve tracers.
     trace.set_tracer_provider(provider)
 
-    # --- Auto-Instrumentation: FastAPI (HTTP layer) ---
+    # HTTP Auto-Instrumentation.
     if app is not None:
-        # SOTA: FinOps & Noise Reduction
-        # Lê as rotas ignoradas do ambiente (ex: metrics,health)
+        # Exclude high-frequency, low-value routes like /metrics or /health
+        # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
         
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
             excluded_urls=excluded_urls_str
         )
-        logger.info(f"OTel: FastAPI auto-instrumented (ignoring routes: {excluded_urls_str})")
+        logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
-    # --- Auto-Instrumentation: SQLAlchemy (Database layer) ---
+    # Database Auto-Instrumentation.
     if engine is not None:
+        # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (spans per query)")
+        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
