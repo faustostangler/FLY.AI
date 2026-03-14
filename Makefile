@@ -24,6 +24,7 @@ help:
 	@echo "rebuild    : Rebuild core local images"
 	@echo "setup      : Initial environment setup (uv sync, pull images)"
 	@echo "up         : Start Foundation (All Modular env)"
+	@echo "restart    : Restart Foundation (All Modular env)"
 	@echo "up-worker  : Start ONLY the Worker + deps"
 	@echo "up-admin   : Start Foundation + pgAdmin"
 	@echo "up-obs     : Start Foundation + observability"
@@ -50,20 +51,23 @@ setup:
 	$(DC) build
 
 up:
+	$(DC) up -d --build
+
+restart:
 	$(DC) --profile "*" down
-	$(DC) up -d
+	$(DC) up -d --build
 
 up-worker:
 	$(DC) --profile "*" down
-	$(DC) up -d worker
+	$(DC) up -d --build worker
 
 up-admin:
 	$(DC) --profile "*" down
-	COMPOSE_PROFILES=admin $(DC) up -d
+	COMPOSE_PROFILES=admin $(DC) up -d --build
 
 up-obs:
 	$(DC) --profile "*" down
-	COMPOSE_PROFILES=observability $(DC) up -d
+	COMPOSE_PROFILES=observability $(DC) up -d --build
 
 sync:
 	$(DC) --profile "*" down

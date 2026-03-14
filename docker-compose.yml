@@ -4,7 +4,7 @@ services:
       context: .
       target: ${DOCKER_BUILD_TARGET}
     image: ${API_IMAGE_NAME}:${API_IMAGE_VERSION}
-    container_name: ${COMPOSE_PROJECT_NAME}_${API_IMAGE_NAME}
+    container_name: ${COMPOSE_PROJECT_NAME}_${API_SERVICE_NAME}
     restart: ${DOCKER_RESTART_POLICY}
     ports:
       - "${DOCKER_BIND_IP}:${API_EXTERNAL_PORT}:${API_INTERNAL_PORT}"

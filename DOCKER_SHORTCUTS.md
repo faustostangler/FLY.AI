@@ -107,3 +107,23 @@ make restart-worker
 | `make destroy-v` | Removes containers + named volumes (Erase DB data) |
 | `make destroy-im` | Removes containers + volumes + images |
 | `make destroy-all` | Full wipe + Docker system prune -a (The Nuclear Option) |
+
+---
+
+## Docker Daemon Hard Reset (System Level)
+
+> [!WARNING]
+> These commands affect the entire Docker engine on the host, not just this project.
+
+```bash
+# Stop Docker engine and its socket
+sudo systemctl stop docker.socket
+sudo systemctl stop docker
+
+# Wipe ancient Docker structure on the D drive (Data Root)
+sudo rm -rf /mnt/linux_d/docker
+
+# Reload daemon configurations and restart engine
+sudo systemctl daemon-reload
+sudo systemctl start docker
+```
