@@ -10,9 +10,12 @@ services:
       - "${DOCKER_BIND_IP}:${API_EXTERNAL_PORT}:${API_INTERNAL_PORT}"
     deploy:
       resources:
+        reservations:
+          cpus: '${API_CPU_RESERVATION}'
+          memory: '${API_MEM_RESERVATION}'
         limits:
           cpus: '${API_CPU_LIMIT}'
-          memory: ${API_MEM_LIMIT}
+          memory: '${API_MEM_LIMIT}'
     logging:
       driver: "json-file"
       options:
@@ -55,9 +58,12 @@ services:
     restart: "on-failure"
     deploy:
       resources:
+        reservations:
+          cpus: '${WORKER_COMPANY_CPU_RESERVATION}'
+          memory: '${WORKER_COMPANY_MEM_RESERVATION}'
         limits:
           cpus: '${WORKER_COMPANY_CPU_LIMIT}'
-          memory: ${WORKER_COMPANY_MEM_LIMIT}
+          memory: '${WORKER_COMPANY_MEM_LIMIT}'
     logging:
       driver: "json-file"
       options:
@@ -83,9 +89,12 @@ services:
     restart: ${DOCKER_RESTART_POLICY}
     deploy:
       resources:
+        reservations:
+          cpus: '${DB_CPU_RESERVATION}'
+          memory: '${DB_MEM_RESERVATION}'
         limits:
           cpus: '${DB_CPU_LIMIT}'
-          memory: ${DB_MEM_LIMIT}
+          memory: '${DB_MEM_LIMIT}'
     environment:
       - POSTGRES_USER=${DB__USER}
       - POSTGRES_PASSWORD=${DB__PASSWORD}
@@ -114,8 +123,10 @@ services:
       retries: 5
     deploy:
       resources:
+        reservations:
+          memory: '${CACHE_MEM_RESERVATION}'
         limits:
-          memory: ${CACHE_MEM_LIMIT}
+          memory: '${CACHE_MEM_LIMIT}'
     ports:
       - "${DOCKER_BIND_IP}:${CACHE_EXTERNAL_PORT}:${CACHE_INTERNAL_PORT}"
     networks:
@@ -130,8 +141,10 @@ services:
     restart: ${DOCKER_RESTART_POLICY}
     deploy:
       resources:
+        reservations:
+          memory: '${DB_ADMIN_MEM_RESERVATION}'
         limits:
-          memory: ${DB_ADMIN_MEM_LIMIT}
+          memory: '${DB_ADMIN_MEM_LIMIT}'
     environment:
       - PGADMIN_DEFAULT_EMAIL=${DB_ADMIN_EMAIL}
       - PGADMIN_DEFAULT_PASSWORD=${DB_ADMIN_PASSWORD}
