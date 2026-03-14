@@ -49,6 +49,9 @@ def _create_sync_use_case():
     from companies.application.use_cases.sync_b3_companies import (
         SyncB3CompaniesUseCase,
     )
+    from shared.infrastructure.adapters.prometheus_telemetry import (
+        PrometheusTelemetryAdapter,
+    )
 
     # Ensure tables exist (same as FastAPI lifespan)
     Base.metadata.create_all(bind=engine)
@@ -56,11 +59,13 @@ def _create_sync_use_case():
     # Wire Adapters into Ports
     session = SessionLocal()
     repository = PostgresCompanyRepository(session=session)
-    data_source = PlaywrightB3DataSource()
+    telemetry = PrometheusTelemetryAdapter()
+    data_source = PlaywrightB3DataSource(telemetry=telemetry)
 
     use_case = SyncB3CompaniesUseCase(
         data_source=data_source,
         repository=repository,
+        telemetry=telemetry,
     )
     return use_case, session
 

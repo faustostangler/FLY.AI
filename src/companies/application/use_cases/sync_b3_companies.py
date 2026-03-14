@@ -5,11 +5,8 @@ from pydantic import ValidationError
 
 from companies.domain.entities.company import Company
 from companies.domain.ports.b3_data_source import B3DataSource
-from companies.domain.ports.company_repository import CompanyRepository
-from shared.infrastructure.progress import ProgressReporter
-from shared.infrastructure.utils.date_resilient import DateResilientParser
-from shared.infrastructure.monitoring.metrics import metrics
 from shared.infrastructure.config import settings
+from shared.domain.ports.telemetry_port import TelemetryPort
 import time
 
 logger = logging.getLogger(__name__)
@@ -19,9 +16,10 @@ class SyncB3CompaniesUseCase:
     Application Use Case to synchronize the list of companies from B3
     into the database using the data source and repository ports.
     """
-    def __init__(self, data_source: B3DataSource, repository: CompanyRepository):
+    def __init__(self, data_source: B3DataSource, repository: CompanyRepository, telemetry: TelemetryPort):
         self._data_source = data_source
         self._repository = repository
+        self._telemetry = telemetry
         
     def _map_b3_payload_to_entity(self, basic_info: Dict[str, Any], detailed_info: Dict[str, Any]) -> Company:
         """
@@ -51,9 +49,9 @@ class SyncB3CompaniesUseCase:
                 segment_eng=detailed_info.get("industryClassificationEng") or detailed_info.get("segmentEng"),
                 activity=detailed_info.get("activity"),
                 describle_category_bvmf=detailed_info.get("describleCategoryBVMF"),
-                date_listing=DateResilientParser.parse(detailed_info.get("dateListing") or basic_info.get("dateListing"), "date_listing"),
-                last_date=DateResilientParser.parse(detailed_info.get("lastDate"), "last_date"),
-                date_quotation=DateResilientParser.parse(detailed_info.get("dateQuotation"), "date_quotation"),
+                date_listing=DateResilientParser.parse(detailed_info.get("dateListing") or basic_info.get("dateListing"), "date_listing", telemetry=self._telemetry),
+                last_date=DateResilientParser.parse(detailed_info.get("lastDate"), "last_date", telemetry=self._telemetry),
+                date_quotation=DateResilientParser.parse(detailed_info.get("dateQuotation"), "date_quotation", telemetry=self._telemetry),
                 website=detailed_info.get("website"),
                 registrar=detailed_info.get("registrar") or detailed_info.get("institutionCommon"),
                 main_registrar=detailed_info.get("mainRegistrar") or detailed_info.get("institutionPreferred") or detailed_info.get("main_registrar"),
@@ -106,7 +104,7 @@ class SyncB3CompaniesUseCase:
         start_time = time.perf_counter()
         
         # 1. SATURATION: Mark task as active
-        metrics.ACTIVE_SYNC_TASKS.inc()
+        self._telemetry.increment_active_sync_tasks()
         
         try:
             async with self._data_source:
@@ -153,7 +151,7 @@ class SyncB3CompaniesUseCase:
                     self._repository.save_batch(unique_entities)
                     
                     # 2. BUSINESS OUTCOMES: Telemetry
-                    metrics.COMPANIES_SYNCED_TOTAL.labels(status="success").inc(len(unique_entities))
+                    self._telemetry.increment_companies_synced(count=len(unique_entities), status="success")
                     
                     # 3. MARKET INSIGHTS: Update snapshot gauges
                     # Note: In a real system, these would be aggregated from the DB periodically
@@ -167,14 +165,14 @@ class SyncB3CompaniesUseCase:
                             segments[e.listing] = segments.get(e.listing, 0) + 1
                     
                     for sector, count in sectors.items():
-                        metrics.COMPANIES_BY_SECTOR.labels(sector=sector).set(count)
+                        self._telemetry.set_companies_by_sector(sector=sector, count=count)
                     for segment, count in segments.items():
-                        metrics.COMPANIES_BY_SEGMENT.labels(segment=segment).set(count)
+                        self._telemetry.set_companies_by_segment(segment=segment, count=count)
             
             duration = time.perf_counter() - start_time
-            metrics.SYNC_DURATION_SECONDS.labels(context="companies").observe(duration)
+            self._telemetry.observe_sync_duration(context="companies", duration=duration)
             logger.info(f"Synchronization completed successfully in {duration:.2f}s.")
             
         finally:
             # Always decrement saturation gauge
-            metrics.ACTIVE_SYNC_TASKS.dec()
+            self._telemetry.decrement_active_sync_tasks()

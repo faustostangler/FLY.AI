@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from typing import Optional, List
-from shared.infrastructure.monitoring.metrics import metrics
+from shared.domain.ports.telemetry_port import TelemetryPort
 
 logger = logging.getLogger(__name__)
 from typing import Annotated
@@ -56,7 +56,8 @@ class DateResilientParser:
         date_str: Optional[str], 
         field_name: str, 
         source: str = "B3",
-        formats: Optional[List[str]] = None
+        formats: Optional[List[str]] = None,
+        telemetry: Optional[TelemetryPort] = None
     ) -> Optional[datetime]:
         """
         Parses a date string and returns a datetime object.
@@ -76,6 +77,9 @@ class DateResilientParser:
         
         # If we reach here, parsing failed
         logger.warning(f"Failed to parse date '{date_str}' for field '{field_name}' from source '{source}'")
-        # Uses the property name defined in MetricsProvider
-        metrics.date_parsing_failures.labels(field=field_name, source=source).inc()
+        if telemetry:
+            telemetry.increment_date_parsing_failures(field=field_name, source=source)
+        else:
+            from shared.infrastructure.monitoring.metrics import DATE_PARSING_FAILURES
+            DATE_PARSING_FAILURES.labels(field=field_name, source=source).inc()
         return None

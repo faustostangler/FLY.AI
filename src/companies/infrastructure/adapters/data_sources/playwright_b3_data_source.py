@@ -4,10 +4,11 @@ import base64
 from playwright.async_api import async_playwright, Page, BrowserContext
 from companies.domain.ports.b3_data_source import B3DataSource
 from shared.infrastructure.config import settings
-from shared.infrastructure.monitoring.metrics import metrics
+from shared.domain.ports.telemetry_port import TelemetryPort
 
 class PlaywrightB3DataSource(B3DataSource):
-    def __init__(self, headless: Optional[bool] = None):
+    def __init__(self, telemetry: TelemetryPort, headless: Optional[bool] = None):
+        self._telemetry = telemetry
         self.headless = headless if headless is not None else settings.app.headless
         self.homepage_url = settings.b3.homepage_url
         self.initial_companies_api = settings.b3.initial_companies_api
@@ -85,7 +86,7 @@ class PlaywrightB3DataSource(B3DataSource):
                     }
                 )
                 if response.status == 429:
-                    metrics.B3_RATE_LIMIT_HITS.inc()
+                    self._telemetry.increment_b3_rate_limit_hits()
                     raise Exception(f"Rate limited by B3 (429) on initial fetch. Payload: {payload}")
                 
                 if not response.ok:
@@ -93,7 +94,7 @@ class PlaywrightB3DataSource(B3DataSource):
 
                 body = await response.body()
                 payload_size = len(body)
-                metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction="inbound", context="b3_initial").inc(payload_size)
+                self._telemetry.increment_network_transmit_bytes(direction="inbound", context="b3_initial", payload_size=payload_size)
 
                 data = json.loads(body)
                 if page_num == 1:
@@ -123,7 +124,7 @@ class PlaywrightB3DataSource(B3DataSource):
                 }
             )
             if response.status == 429:
-                metrics.b3_rate_limit_hits.inc()
+                self._telemetry.increment_b3_rate_limit_hits()
                 raise Exception(f"Rate limited by B3 (429) on details fetch for {cvm_code}.")
 
             if not response.ok:
@@ -131,7 +132,7 @@ class PlaywrightB3DataSource(B3DataSource):
             
             body = await response.body()
             payload_size = len(body)
-            metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction="inbound", context="b3_detail").inc(payload_size)
+            self._telemetry.increment_network_transmit_bytes(direction="inbound", context="b3_detail", payload_size=payload_size)
             
             return json.loads(body)
         finally:
