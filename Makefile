@@ -24,7 +24,8 @@ help:
 	@echo "shell      : Open a shell in the API container"
 	@echo "shell-work : Open a shell in the Worker container"
 	@echo "sync       : Run a one-off synchronization task"
-	@echo "build      : Rebuild core local images"
+	@echo "build      : Build core local images"
+	@echo "rebuild    : Rebuild core local images"
 
 
 setup:
@@ -64,3 +65,6 @@ sync:
 
 build:
 	docker compose build
+
+rebuild:
+	docker compose build --no-cache

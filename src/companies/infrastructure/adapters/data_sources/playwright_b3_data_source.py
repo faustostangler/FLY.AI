@@ -8,7 +8,7 @@ from shared.infrastructure.monitoring.metrics import metrics
 
 class PlaywrightB3DataSource(B3DataSource):
     def __init__(self, headless: Optional[bool] = None):
-        self.headless = headless if headless is not None else settings.b3.headless
+        self.headless = headless if headless is not None else settings.app.headless
         self.homepage_url = settings.b3.homepage_url
         self.initial_companies_api = settings.b3.initial_companies_api
         

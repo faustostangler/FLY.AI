@@ -8,6 +8,8 @@ class AppSettings(BaseModel):
     description: str = "SOTA Finance Data Platform using DDD and Hexagonal Architecture"
     version: str = "0.2.0"
     debug: bool = False
+    headless: bool = True
+    max_concurrency: int = 50
     log_dir: str = "logs"
     log_name: str = "app.log"
     model_config = {"extra": "ignore"}
@@ -107,7 +109,6 @@ class B3Settings(BaseModel):
     financial_api: str = (
         "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedFinancial/"
     )
-    headless: bool = True
     words_to_remove: list[str] = [
         "  EM LIQUIDACAO",
         " EM LIQUIDACAO",
@@ -118,7 +119,6 @@ class B3Settings(BaseModel):
         " EM LIQUIDACAO EXTRAJUDICIAL",
         " EMPRESA FALIDA",
     ]
-    max_concurrency: int = 50
     model_config = {"extra": "ignore"}
 
 

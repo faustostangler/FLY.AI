@@ -114,7 +114,7 @@ class SyncB3CompaniesUseCase:
                 initial_companies = await self._data_source.fetch_initial_companies()
                 
                 # Using concurrency from centralized configuration
-                semaphore = asyncio.Semaphore(settings.b3.max_concurrency)
+                semaphore = asyncio.Semaphore(settings.app.max_concurrency)
                 reporter = ProgressReporter(total=len(initial_companies))
                 
                 async def process_company(index: int, raw_company: Dict[str, Any]) -> Optional[Company]:

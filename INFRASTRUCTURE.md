@@ -19,11 +19,11 @@ The project adheres to SOTA practices by using **Managed Docker Volumes** for al
 
 | Service | Volume Type | Host Source | Container Path |
 | :--- | :--- | :--- | :--- |
-| **PostgreSQL** | Managed Volume | `postgres-data` | `/var/lib/postgresql/data` |
-| **Redis** | Managed Volume | `redis-data` | `/data` |
-| **pgAdmin** | Managed Volume | `pgadmin-data` | `/var/lib/pgadmin` |
-| **Prometheus**| Managed Volume | `prometheus-data` | `/prometheus` |
-| **Grafana** | Managed Volume | `grafana-data` | `/var/lib/grafana` |
+| **PostgreSQL** | Managed Volume | `db-data` | `/var/lib/postgresql` |
+| **Redis** | Managed Volume | `cache-data` | `/data` |
+| **pgAdmin** | Managed Volume | `db-admin-data` | `/var/lib/pgadmin` |
+| **Prometheus**| Managed Volume | `metrics-data` | `/prometheus` |
+| **Grafana** | Managed Volume | `observability-data` | `/var/lib/grafana` |
 
 > [!NOTE]
 > **Bind Mounts** are exclusively used for local configuration files (e.g., `./monitoring/prometheus/prometheus.yml`) to allow immediate updates without rebuilding volumes.
@@ -32,15 +32,15 @@ The project adheres to SOTA practices by using **Managed Docker Volumes** for al
 
 ### Infrastructure Services
 - **PostgreSQL (`db`)**:
-  - **Internal URL**: `postgresql://postgres:postgres@db:5432/flyai_b3`
+  - **Internal URL**: `postgresql://fly_user_stangler:fly_pass_stangler_secure_123!@db:5432/fly_b3`
   - **External Access**: `localhost:5432`
-  - **Credentials**: User: `postgres` | Pass: `postgres` | DB: `flyai_b3`
-- **Redis (`redis`)**:
-  - **Internal URL**: `redis://redis:6379/0`
+  - **Credentials**: User: `fly_user_stangler` | Pass: `fly_pass_stangler_secure_123!` | DB: `fly_b3`
+- **Redis (`cache`)**:
+  - **Internal URL**: `redis://cache:6379/0`
   - **External Access**: `localhost:6379`
 - **pgAdmin (DB Dashboard)**:
   - **URL**: `http://localhost:5050`
-  - **Login**: `admin@fly.ai` | **Password**: `admin`
+  - **Login**: `admin@fly.ai` | **Password**: `admin_pass_secure`
 
 ### Monitoring and Observability
 - **Prometheus**:
@@ -48,7 +48,7 @@ The project adheres to SOTA practices by using **Managed Docker Volumes** for al
   - **Scrape Target**: Monitors `api:8000`.
 - **Grafana**:
   - **URL**: `http://localhost:3000`
-  - **Credentials**: `admin` / `admin` (Automatically provisioned).
+  - **Credentials**: `admin` / `observability_pass_stangler` (Automatically provisioned).
 
 ### Application (API)
 - **Local Proxy URL**: `http://localhost:8001`
