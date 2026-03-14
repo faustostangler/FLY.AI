@@ -73,7 +73,7 @@ cat .env/profile.env
 | **Grafana** | `3000` | [http://localhost:3000](http://localhost:3000) |
 | **Prometheus** | `9090` | [http://localhost:9090](http://localhost:9090) |
 | **Alertmanager** | `9093` | [http://localhost:9093](http://localhost:9093) |
-| **Tempo (Traces)** | `3200` | [http://localhost:3200](http://localhost:3200) |
+| **Tempo (Traces)** | `3200` | [http://localhost:3200](http://localhost:3200/ready) |
 | **PostgreSQL**| `5432` | `localhost:5432` |
 | **Redis** | `6379` | `localhost:6379` |
 
