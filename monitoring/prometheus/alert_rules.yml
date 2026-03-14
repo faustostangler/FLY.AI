@@ -189,6 +189,19 @@ groups:
             Business validation failures (CNPJ, Ticker format, etc.)
             are occurring at a rate > 1/min. B3 data format may have changed.
 
+      - alert: B3APIContractMismatch
+        # SRE for Data: Detects sudden shifts in external schema/contract
+        expr: sum by (entity, field, reason) (rate(domain_data_validation_errors_total[5m])) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+          domain: data_ingestion
+          team: data_engineering
+        annotations:
+          summary: "🚨 B3 Contract Mismatch Detected: {{ $labels.entity }}"
+          description: "A surge in validation errors was detected for field '{{ $labels.field }}' (Reason: {{ $labels.reason }}). B3 has likely changed their payload format."
+          runbook_url: "https://wiki.stangler.dev/runbooks/b3-contract-mismatch"
+
       - alert: HighDateParsingFailures
         expr: >
           increase(domain_date_parsing_failures_total[15m]) > 50
