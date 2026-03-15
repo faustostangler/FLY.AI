@@ -8,9 +8,32 @@ Following the DDD testing strategy:
     - Presentation tests: E2E/Integration via FastAPI TestClient.
 """
 
+import os
+import sys
+
+# --- SOTA: Mutmut Sandbox Rehydration ---
+# Mutmut v3 only copies mutated files to `mutants/src/`. Python 3 treats these partial folders 
+# as namespace packages and falls back to original `src`, bypassing mutants entirely.
+# We intercept the Pytest bootstrap to rehydrate the missing __init__.py files.
+if os.getcwd().endswith("mutants"):
+    os.system("cp -rn ../src/* ./src/ || true")
+    
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock
+
+# --- SOTA: Bootstrap Env Vars for Pre-Import Testing ---
+# Ensures that pydantic Settings() imported throughout src/ does not fail 
+# during pytest collection inside mutmut's isolated environments where .envs/ do not exist
+os.environ["DB__USER"] = os.environ.get("DB__USER", "test_user")
+os.environ["DB__PASSWORD"] = os.environ.get("DB__PASSWORD", "test_pass")
+os.environ["DB__NAME"] = os.environ.get("DB__NAME", "test_db")
+os.environ.pop("DB__URL", None)
+
+os.environ["REDIS__HOST"] = os.environ.get("REDIS__HOST", "localhost")
+os.environ["REDIS__PORT"] = os.environ.get("REDIS__PORT", "6379")
+os.environ["REDIS__DB"] = os.environ.get("REDIS__DB", "0")
+os.environ.pop("REDIS__URL", None)
 
 from companies.domain.entities.company import Company
 from companies.domain.value_objects.cnpj import CNPJ

@@ -41,7 +41,7 @@ def test_health_check():
 def test_trigger_companies_sync():
     mock_use_case.reset_mock()
     response = client.post("/api/v1/companies/sync")
-    assert response.status_code == 200
+    assert response.status_code == 202
     assert response.json()["status"] == "accepted"
     # the execute method should be called as a background task
     mock_use_case.execute.assert_called_once()

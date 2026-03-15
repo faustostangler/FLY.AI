@@ -54,6 +54,7 @@ env/
 .envrc
 .env/
 .venv-linux/
+.envs/
 
 # VSCode specific
 # .vscode/
@@ -151,4 +152,7 @@ data/
 *dom.
 
 # tests
-*.meta
+*.meta.env
+
+# Docker
+docker-compose.override.yml

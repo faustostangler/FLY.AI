@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0.0",
     "sqlalchemy>=2.0.0",
-    "playwright>=1.40.0",
+    "playwright>=1.58.0",
     "fastapi>=0.100.0",
     "psycopg2-binary>=2.9.11",
     "uvicorn[standard]>=0.41.0",
@@ -17,11 +17,18 @@ dependencies = [
     "unidecode>=1.4.0",
     "prometheus-client>=0.24.1",
     "pact-python>=3.2.1",
+    "opentelemetry-api>=1.40.0",
+    "opentelemetry-sdk>=1.40.0",
+    "opentelemetry-exporter-otlp>=1.40.0",
+    "opentelemetry-instrumentation-fastapi>=0.61b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.61b0",
+    "opentelemetry-instrumentation-httpx>=0.61b0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
     "pytest-playwright>=0.4.0",
     "mutmut>=2.4.0",
     "ruff>=0.1.0",
@@ -40,12 +47,13 @@ packages = ["src/shared", "src/companies", "src/financials", "src/market_data"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"
+addopts = "-ra -q --cov=src --cov-report=term-missing --ignore=mutants"
 testpaths = [
     "tests",
 ]
+norecursedirs = ["mutants"]
 pythonpath = [
-    "src", "."
+    "src", "../src", "."
 ]
 
 [dependency-groups]
@@ -53,22 +61,22 @@ dev = [
     "httpx>=0.28.1",
     "mutmut>=3.5.0",
     "pytest-asyncio>=1.3.0",
+    "pytest-cov>=6.0.0",
 ]
 
 
 [tool.mutmut]
 paths_to_mutate = [
-    "src/companies/", 
-    "src/financials/", 
-    "src/market_data/", 
-    "src/shared/"
+    "src/"
 ]
-tests_dir = [
-    "tests/companies/", 
-    "tests/financials/", 
-    "tests/market_data/", 
-    "tests/shared/"
-]
-# debug = true
-# SOTA Rule: Use pytest from the venv directly to avoid uv resyncing editable installs
+paths_to_exclude = "**/*__init__.py, src/companies/domain/exceptions.py"
+
+debug = true
 runner = ".venv/bin/pytest -x"
+use_coverage = false
+
+[tool.coverage.paths]
+source = [
+    "src",
+    "mutants/src"
+]

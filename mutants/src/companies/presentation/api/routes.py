@@ -35,17 +35,24 @@ def _mutmut_trampoline(orig, mutants, call_args, call_kwargs, self_arg = None): 
         result = mutants[mutant_name](*call_args, **call_kwargs) # type: ignore
     return result # type: ignore
 
-@router.post("/sync")
+@router.post("/sync", status_code=202)
 async def trigger_companies_sync(
     background_tasks: BackgroundTasks,
     use_case: SyncB3CompaniesUseCase = Depends(get_sync_b3_companies_use_case)
 ):
-    """
-    Triggers the background synchronization of B3 Companies.
+    """Triggers an asynchronous synchronization with the B3 market catalog.
+
+    Synchronization is a high-latency I/O operation (scraping thousands 
+    of issuers). We use FastAPI's BackgroundTasks to accept the request 
+    immediately and process it off the main request-response cycle, 
+    preventing timeouts and blocking the event loop.
+
+    Returns:
+        dict: A notification that the task has been accepted.
     """
     background_tasks.add_task(use_case.execute)
     
     return {
-        "status": "accepted", 
-        "message": "B3 Company synchronization started in the background."
+        "status": "accepted",  # pragma: no mutate
+        "message": "B3 Company synchronization started in the background."  # pragma: no mutate
     }

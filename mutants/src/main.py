@@ -1,7 +1,5 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from starlette.responses import Response
 from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.database.connection import engine
 from companies.infrastructure.adapters.database.models import Base
@@ -10,20 +8,37 @@ import logging
 import os
 import time
 from shared.infrastructure.config import settings
-from shared.infrastructure.monitoring.metrics import metrics
+from prometheus_client import make_asgi_app
+from shared.infrastructure.monitoring import metrics 
+from shared.infrastructure.monitoring.tracing import setup_tracing, OTelLogFilter
 
-# --- Logic for Logging SOTA Configuration ---
+# Ensure the logging directory exists before initializing file handlers.
+# Standard fail-fast principle during infrastructure bootstrap.
 os.makedirs(settings.app.log_dir, exist_ok=True)
+
+# Standardized Log format for observability.
+# Injecting trace_id and span_id allows seamless correlation between 
+# logs in Loki and distributed traces in Tempo.
+LOG_FORMAT = (
+    "%(asctime)s [%(levelname)s] "
+    "[trace_id=%(trace_id)s span_id=%(span_id)s] "
+    "%(name)s: %(message)s"
+)
 
 logging.basicConfig(
     level=logging.INFO,
-    # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    format="%(asctime)s [%(levelname)s]: %(message)s",
+    format=LOG_FORMAT,
     handlers=[
         logging.FileHandler(f"{settings.app.log_dir}/{settings.app.log_name}"),
         logging.StreamHandler()
     ]
 )
+
+# Apply the OTel filter to global logging logic.
+otel_filter = OTelLogFilter()
+for handler in logging.root.handlers:
+    handler.addFilter(otel_filter)
+
 logger = logging.getLogger(__name__)
 from typing import Annotated
 from typing import Callable
@@ -56,13 +71,30 @@ def _mutmut_trampoline(orig, mutants, call_args, call_kwargs, self_arg = None): 
     else:
         result = mutants[mutant_name](*call_args, **call_kwargs) # type: ignore
     return result # type: ignore
-# --------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure tables are created on startup 
-    # (In a real scenario, use Alembic)
+    """Manages Application Startup and Shutdown lifecycles.
+
+    Nested Logical Steps:
+        1. Database Bootstrap: Synchronize base models with pgStore.
+        2. Telemetry Bootstrap: Initialize OpenTelemetry auto-instrumentation.
+    """
+    # Create tables automatically. 
+    # TODO(Issue-Arch): Transition to Alembic for production migrations.
     Base.metadata.create_all(bind=engine)
+    
+    # Bootstrap Distributed Tracing if enabled in settings.
+    if settings.otel.enabled:
+        setup_tracing(
+            app=app,
+            engine=engine,
+            service_name=settings.otel.service_name,
+        )
+        logger.info("SRE: Distributed tracing enabled → Grafana Tempo")
+    else:
+        logger.info("SRE: Distributed tracing DISABLED (otel.enabled=False)")
+    
     yield
 
 app = FastAPI(
@@ -72,67 +104,93 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# --- SOTA Observability Middleware (Golden Signals) ---
+# Mount the Prometheus exporter on the /metrics sub-path.
+# Separation of concerns between domain APIs and infrastructure telemetry.
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
 @app.middleware("http")
 async def prometheus_middleware(request: Request, call_next):
-    # Traffic & Latency Logic
+    """Captures 'The Four Golden Signals' for every HTTP transaction.
+
+    This middleware ensures that throughput, latency, errors, and 
+    saturation are measured consistently across the entire API surface.
+
+    Args:
+        request (Request): The incoming FastAPI request.
+        call_next: The next handler in the ASGI chain.
+    """
+    # Prevent the scraper from scraping its own scraper metrics.
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
     method = request.method
-    path = request.url.path
+    # Use the route template (e.g., /api/v1/companies/{ticker}) to avoid 
+    # cardinality explosion in Prometheus labels.
+    path = request.scope.get("route").path if request.scope.get("route") else request.url.path
     
-    # Start timer
+    # 1. SATURATION/CONCURRENCY: Track active requests.
+    metrics.IN_FLIGHT_REQUESTS.labels(method=method, endpoint=path).inc()
+    
+    # 2. TRAFFIC: Inbound payload measurement.
+    request_content_length = request.headers.get("content-length")
+    if request_content_length:
+        try:
+            req_size = int(request_content_length)
+            metrics.HTTP_REQUEST_SIZE.labels(method=method, endpoint=path).observe(req_size)
+            metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction="inbound", context="api").inc(req_size)
+        except ValueError:
+            pass
+
     start_time = time.perf_counter()
     
     try:
         response = await call_next(request)
         duration = time.perf_counter() - start_time
-        
-        # Labels for labels
         status_code = str(response.status_code)
         
-        # 1. LATENCY
-        metrics.http_request_duration_seconds.labels(method=method, endpoint=path).observe(duration)
+        # 3. LATENCY & THROUGHPUT: Observe performance per endpoint/status.
+        metrics.HTTP_REQUEST_DURATION.labels(method=method, endpoint=path).observe(duration)
+        metrics.HTTP_REQUESTS_TOTAL.labels(method=method, endpoint=path, status=status_code).inc()
         
-        # 2. TRAFFIC
-        metrics.http_requests_total.labels(method=method, endpoint=path, status=status_code).inc()
-
-        # 4. NETWORK (Outbound)
+        # 4. TRAFFIC: Outbound payload measurement.
         content_length = response.headers.get("content-length")
         if content_length:
-            resp_size = int(content_length)
-            metrics.http_response_size_bytes.labels(method=method, endpoint=path).observe(resp_size)
-            metrics.network_transmit_bytes_total.labels(direction="outbound", context="api").inc(resp_size)
-        
-        # 3. ERRORS (Non-2xx/3xx)
+            try:
+                resp_size = int(content_length)
+                metrics.HTTP_RESPONSE_SIZE.labels(method=method, endpoint=path).observe(resp_size)
+                metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(direction="outbound", context="api").inc(resp_size)
+            except ValueError:
+                pass
+
+        # 5. ERRORS: Track non-2xx status codes for SLI calculation.
         if response.status_code >= 400:
-            metrics.http_requests_failed_total.labels(
-                method=method, 
-                endpoint=path, 
-                error_type=status_code
+            metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
+                method=method, endpoint=path, error_type=status_code
             ).inc()
             
         return response
         
     except Exception as e:
-        # Capture unexpected crashes as Errors
-        metrics.http_requests_failed_total.labels(
-            method=method, 
-            endpoint=path, 
-            error_type=type(e).__name__
+        # Track unhandled exceptions as critical errors (Type 500 equivalent).
+        metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
+            method=method, endpoint=path, error_type=type(e).__name__
         ).inc()
         raise e
-
-@app.get("/metrics")
-def metrics_endpoint():
-    """Exposes Prometheus metrics for scraping."""
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+        
+    finally:
+        # Decrement concurrency gauge to maintain mathematical consistency.
+        metrics.IN_FLIGHT_REQUESTS.labels(method=method, endpoint=path).dec()
 
 @app.get("/health")
 def health_check():
+    """Liveness probe for infrastructure health (K8s/Docker)."""
     return {"status": "ok", "message": "FLY.AI Core operational"}
 
-# Register Domain Routers
+# Register Domain Bounded Contexts.
+# Keeps the API surface modular as we add new domains.
 app.include_router(companies_router, prefix="/api/v1")
 
-# Future routers
+# Future Domain Modules placeholders:
 # app.include_router(financials_router, prefix="/api/v1")
 # app.include_router(market_data_router, prefix="/api/v1")

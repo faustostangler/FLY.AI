@@ -52,7 +52,7 @@ def test_b3_payload_contract():
     
     # This acts as our contract verification: does our software correctly 
     # ingest the payload defined in the contract?
-    use_case = SyncB3CompaniesUseCase(data_source=MagicMock(), repository=MagicMock())
+    use_case = SyncB3CompaniesUseCase(data_source=MagicMock(), repository=MagicMock(), telemetry=MagicMock())
     entity = use_case._map_b3_payload_to_entity(basic_info, expected_payload)
     
     assert entity.ticker == "PETR4"

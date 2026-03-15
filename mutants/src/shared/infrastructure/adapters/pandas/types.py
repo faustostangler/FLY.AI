@@ -39,28 +39,40 @@ def ensure_datetime_col(s: pd.Series) -> pd.Series:
     return _mutmut_trampoline(x_ensure_datetime_col__mutmut_orig, x_ensure_datetime_col__mutmut_mutants, args, kwargs, None)
 
 def x_ensure_datetime_col__mutmut_orig(s: pd.Series) -> pd.Series:
-    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="coerce")
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="coerce", format="mixed")
 
 def x_ensure_datetime_col__mutmut_1(s: pd.Series) -> pd.Series:
-    return s if is_datetime64_any_dtype(None) else pd.to_datetime(s, errors="coerce")
+    return s if is_datetime64_any_dtype(None) else pd.to_datetime(s, errors="coerce", format="mixed")
 
 def x_ensure_datetime_col__mutmut_2(s: pd.Series) -> pd.Series:
-    return s if is_datetime64_any_dtype(s) else pd.to_datetime(None, errors="coerce")
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(None, errors="coerce", format="mixed")
 
 def x_ensure_datetime_col__mutmut_3(s: pd.Series) -> pd.Series:
-    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors=None)
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors=None, format="mixed")
 
 def x_ensure_datetime_col__mutmut_4(s: pd.Series) -> pd.Series:
-    return s if is_datetime64_any_dtype(s) else pd.to_datetime(errors="coerce")
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="coerce", format=None)
 
 def x_ensure_datetime_col__mutmut_5(s: pd.Series) -> pd.Series:
-    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, )
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(errors="coerce", format="mixed")
 
 def x_ensure_datetime_col__mutmut_6(s: pd.Series) -> pd.Series:
-    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="XXcoerceXX")
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, format="mixed")
 
 def x_ensure_datetime_col__mutmut_7(s: pd.Series) -> pd.Series:
-    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="COERCE")
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="coerce", )
+
+def x_ensure_datetime_col__mutmut_8(s: pd.Series) -> pd.Series:
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="XXcoerceXX", format="mixed")
+
+def x_ensure_datetime_col__mutmut_9(s: pd.Series) -> pd.Series:
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="COERCE", format="mixed")
+
+def x_ensure_datetime_col__mutmut_10(s: pd.Series) -> pd.Series:
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="coerce", format="XXmixedXX")
+
+def x_ensure_datetime_col__mutmut_11(s: pd.Series) -> pd.Series:
+    return s if is_datetime64_any_dtype(s) else pd.to_datetime(s, errors="coerce", format="MIXED")
 
 x_ensure_datetime_col__mutmut_mutants : ClassVar[MutantDict] = { # type: ignore
 'x_ensure_datetime_col__mutmut_1': x_ensure_datetime_col__mutmut_1, 
@@ -69,7 +81,11 @@ x_ensure_datetime_col__mutmut_mutants : ClassVar[MutantDict] = { # type: ignore
     'x_ensure_datetime_col__mutmut_4': x_ensure_datetime_col__mutmut_4, 
     'x_ensure_datetime_col__mutmut_5': x_ensure_datetime_col__mutmut_5, 
     'x_ensure_datetime_col__mutmut_6': x_ensure_datetime_col__mutmut_6, 
-    'x_ensure_datetime_col__mutmut_7': x_ensure_datetime_col__mutmut_7
+    'x_ensure_datetime_col__mutmut_7': x_ensure_datetime_col__mutmut_7, 
+    'x_ensure_datetime_col__mutmut_8': x_ensure_datetime_col__mutmut_8, 
+    'x_ensure_datetime_col__mutmut_9': x_ensure_datetime_col__mutmut_9, 
+    'x_ensure_datetime_col__mutmut_10': x_ensure_datetime_col__mutmut_10, 
+    'x_ensure_datetime_col__mutmut_11': x_ensure_datetime_col__mutmut_11
 }
 x_ensure_datetime_col__mutmut_orig.__name__ = 'x_ensure_datetime_col'
 

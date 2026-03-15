@@ -86,6 +86,33 @@ def test_build_spec_implicit_or_from_list():
     assert isinstance(spec, Or)
     assert len(spec.items) == 2
 
+def test_build_spec_empty_dict():
+    # If dict is empty, it shouldn't match len(d) == 1, so it drops to invalid
+    with pytest.raises(ValueError, match="Filtro inválido"):
+        FilterBuilder.build_spec({})
+
+def test_build_spec_multiple_keys_in_dict():
+    # Multiple keys not matching 'and', 'or', 'not' drop to invalid
+    with pytest.raises(ValueError, match="Filtro inválido"):
+        FilterBuilder.build_spec({"f1": "v1", "f2": "v2"})
+
+def test_build_spec_unknown_operation():
+    # An operation dict that doesn't match string modes, list modes, or cmp map should just become an equality match for the dictionary (or whatever behavior the code implements). Based on the code, if no modes match, it tries to find a cmp map. If no cmp map matches, it falls through to explicit equality: `Cmp(field=field, op="==", value=cond)`.
+    d = {"f": {"unknown": "val"}}
+    spec = FilterBuilder.build_spec(d)
+    assert isinstance(spec, Cmp)
+    assert spec.op == "=="
+    assert spec.value == {"unknown": "val"}
+
+def test_build_spec_listany_contains():
+    d = {"tags": {"contains": "A"}}
+    # "contains" is in BOTH _str_modes and _list_ops
+    # Based on the code, _str_modes is checked FIRST. 
+    # Because {"contains": "A"} has "contains", it will hit the StrMatch block first!
+    spec = FilterBuilder.build_spec(d)
+    assert isinstance(spec, StrMatch)
+    assert spec.mode == "contains"
+
 def test_build_spec_invalid():
     with pytest.raises(ValueError):
         FilterBuilder.build_spec(123)

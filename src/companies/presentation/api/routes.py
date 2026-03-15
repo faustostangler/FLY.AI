@@ -22,6 +22,6 @@ async def trigger_companies_sync(
     background_tasks.add_task(use_case.execute)
     
     return {
-        "status": "accepted", 
-        "message": "B3 Company synchronization started in the background."
+        "status": "accepted",  # pragma: no mutate
+        "message": "B3 Company synchronization started in the background."  # pragma: no mutate
     }

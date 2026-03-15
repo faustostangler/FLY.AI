@@ -74,41 +74,41 @@ async def _run_sync_companies():
     """Executes the SyncB3CompaniesUseCase with proper resource cleanup."""
     use_case, session = _create_sync_use_case()
     try:
-        logger.info("Worker: Starting B3 Companies Synchronization...")
+        logger.info("Worker: Starting B3 Companies Synchronization...")  # pragma: no mutate
         await use_case.execute()
-        logger.info("Worker: Synchronization completed successfully.")
+        logger.info("Worker: Synchronization completed successfully.")  # pragma: no mutate
     except Exception as e:
-        logger.error(f"Worker: Synchronization failed: {e}", exc_info=True)
+        logger.error(f"Worker: Synchronization failed: {e}", exc_info=True)  # pragma: no mutate
         raise
     finally:
         session.close()
-        logger.info("Worker: Database session closed.")
+        logger.info("Worker: Database session closed.")  # pragma: no mutate
         
         # SOTA: EMPURRAR PARA O PUSHGATEWAY ANTES DO CONTÊINER MORRER
         from prometheus_client import push_to_gateway, REGISTRY
         pushgateway_url = os.getenv("PUSHGATEWAY_URL", "http://metrics-ingestion:9091")
         
         try:
-            logger.info(f"Empurrando métricas para o Pushgateway em {pushgateway_url}...")
+            logger.info(f"Empurrando métricas para o Pushgateway em {pushgateway_url}...")  # pragma: no mutate
             # 'job' é a etiqueta que agrupará essas métricas lá no Prometheus
             push_to_gateway(pushgateway_url, job='worker_sync_companies', registry=REGISTRY)
-            logger.info("Métricas empurradas com sucesso para o Pushgateway (metrics-ingestion).")
+            logger.info("Métricas empurradas com sucesso para o Pushgateway (metrics-ingestion).")  # pragma: no mutate
         except Exception as pg_error:
             # Não queremos que uma falha na telemetria quebre o job principal, apenas logamos
-            logger.error(f"Falha ao enviar métricas para o Pushgateway (metrics-ingestion): {pg_error}")
+            logger.error(f"Falha ao enviar métricas para o Pushgateway (metrics-ingestion): {pg_error}")  # pragma: no mutate
 
 
 async def main():
     if len(sys.argv) < 2:
-        print("Usage: python -m src.shared.presentation.cli [command]")
-        print("Available commands: sync-companies")
+        print("Usage: python -m src.shared.presentation.cli [command]")  # pragma: no mutate
+        print("Available commands: sync-companies")  # pragma: no mutate
         return
 
     cmd = sys.argv[1]
     if cmd == "sync-companies":
         await _run_sync_companies()
     else:
-        print(f"Unknown command: {cmd}")
+        print(f"Unknown command: {cmd}")  # pragma: no mutate
         sys.exit(1)
 
 

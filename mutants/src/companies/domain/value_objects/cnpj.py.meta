@@ -1,0 +1,36 @@
+{
+    "exit_code_by_key": {
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_1": 1,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_2": 1,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_3": 1,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_4": 1,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_5": 1,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_6": 1,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_7": 1,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_8": 1,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_9": 1
+    },
+    "durations_by_key": {
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_1": 0.263141,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_3": 0.302135,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_2": 0.326954,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_4": 0.376723,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_5": 0.358016,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_6": 0.326352,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_8": 0.373883,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_9": 0.375511,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_7": 0.36258
+    },
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_1": 0.0010302080045221373,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_2": 0.0010302080045221373,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_3": 0.0010302080045221373,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_4": 0.0010302080045221373,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_5": 0.0010302080045221373,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_6": 0.0010302080045221373,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_7": 0.0010302080045221373,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_8": 0.0010302080045221373,
+        "companies.domain.value_objects.cnpj.x\u01c1CNPJ\u01c1format__mutmut_9": 0.0010302080045221373
+    }
+}

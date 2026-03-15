@@ -4,7 +4,15 @@ from contextlib import contextmanager
 
 from shared.infrastructure.config import settings
 
-engine = create_engine(settings.db.url)
+# Initialize the SQLAlchemy Engine.
+# Standardizing the connection lifecycle and timeouts ensures that the 
+# application doesn't hang indefinitely on network partitions.
+engine = create_engine(
+    settings.db.url,
+    connect_args={"connect_timeout": settings.db.connection_timeout}
+)
+
+# Shared Session Factory for consistent persistence behavior across the system.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 from typing import Annotated
 from typing import Callable
@@ -44,17 +52,37 @@ def get_db():
     return _mutmut_trampoline(x_get_db__mutmut_orig, x_get_db__mutmut_mutants, args, kwargs, None)
 
 def x_get_db__mutmut_orig():
+    """Provides a transactional scope for database operations.
+
+    This generator ensures that every unit of work has its own 
+    isolated session, which is guaranteed to be closed after the 
+    request/operation completes, preventing connection leaks.
+
+    Yields:
+        Session: An active SQLAlchemy database session.
+    """
     db = SessionLocal()
     try:
         yield db
     finally:
+        # Guarantee closure to return the connection to the pool.
         db.close()
 
 def x_get_db__mutmut_1():
+    """Provides a transactional scope for database operations.
+
+    This generator ensures that every unit of work has its own 
+    isolated session, which is guaranteed to be closed after the 
+    request/operation completes, preventing connection leaks.
+
+    Yields:
+        Session: An active SQLAlchemy database session.
+    """
     db = None
     try:
         yield db
     finally:
+        # Guarantee closure to return the connection to the pool.
         db.close()
 
 x_get_db__mutmut_mutants : ClassVar[MutantDict] = { # type: ignore

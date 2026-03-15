@@ -1,0 +1,24 @@
+{
+    "exit_code_by_key": {
+        "companies.presentation.api.dependencies.x_get_company_repository__mutmut_1": 33,
+        "companies.presentation.api.dependencies.x_get_b3_data_source__mutmut_1": 33,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_1": 33,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_2": 33,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_3": 33,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_4": 33,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_5": 33,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_6": 33
+    },
+    "durations_by_key": {},
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {
+        "companies.presentation.api.dependencies.x_get_company_repository__mutmut_1": 0,
+        "companies.presentation.api.dependencies.x_get_b3_data_source__mutmut_1": 0,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_1": 0,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_2": 0,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_3": 0,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_4": 0,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_5": 0,
+        "companies.presentation.api.dependencies.x_get_sync_b3_companies_use_case__mutmut_6": 0
+    }
+}

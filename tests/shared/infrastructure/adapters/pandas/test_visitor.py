@@ -86,3 +86,48 @@ def test_logical_not(visitor, df):
     spec = Not(Cmp("age", "==", 20))
     mask = spec.accept(visitor, df)
     assert mask.tolist() == [False, True, True, True]
+
+def test_logical_and(visitor, df):
+    spec = And([Cmp("age", ">", 20), StrMatch("name", "startswith", "B")])
+    mask = spec.accept(visitor, df)
+    assert mask.tolist() == [False, True, False, False]
+
+def test_logical_or(visitor, df):
+    spec = Or([Cmp("age", "==", 20), StrMatch("name", "startswith", "C")])
+    mask = spec.accept(visitor, df)
+    assert mask.tolist() == [True, False, True, False]
+
+def test_visit_cmp_datetime_and_unknown_operator(visitor, df):
+    # Datetime handling
+    spec_dt = Cmp("date", "==", pd.to_datetime("2021-01-01"))
+    mask = spec_dt.accept(visitor, df)
+    assert mask.tolist() == [False, True, False, False]
+    
+    # Operators >=, <, <=, !=
+    spec_ge = Cmp("age", ">=", 25)
+    assert spec_ge.accept(visitor, df).tolist() == [False, True, True, False]
+
+    spec_lt = Cmp("age", "<", 25)
+    assert spec_lt.accept(visitor, df).tolist() == [True, False, False, False]
+
+    spec_le = Cmp("age", "<=", 25)
+    assert spec_le.accept(visitor, df).tolist() == [True, True, False, False]
+
+    spec_ne = Cmp("age", "!=", 25)
+    assert spec_ne.accept(visitor, df).tolist() == [True, False, True, True]
+
+    # Unknown operator
+    with pytest.raises(ValueError, match="Operador desconhecido"):
+        Cmp("age", "unknown_op", 10).accept(visitor, df)
+
+def test_visit_str_endswith_and_unknown_mode(visitor, df):
+    spec_ends = StrMatch("name", "endswith", "e")
+    mask = spec_ends.accept(visitor, df)
+    assert mask.tolist() == [True, False, True, False]
+
+    with pytest.raises(ValueError, match="Modo string desconhecido"):
+        StrMatch("name", "unknown_mode", "xx").accept(visitor, df)
+
+def test_visit_list_any_unknown_operator(visitor, df):
+    with pytest.raises(ValueError, match="Operador lista desconhecido"):
+        ListAny("tags", "unknown_op", "val").accept(visitor, df)

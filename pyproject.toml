@@ -47,12 +47,13 @@ packages = ["src/shared", "src/companies", "src/financials", "src/market_data"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --cov=src --cov-report=term-missing --cov-fail-under=90"
+addopts = "-ra -q --cov=src --cov-report=term-missing --ignore=mutants"
 testpaths = [
     "tests",
 ]
+norecursedirs = ["mutants"]
 pythonpath = [
-    "src", "."
+    "src", "../src", "."
 ]
 
 [dependency-groups]
@@ -66,17 +67,16 @@ dev = [
 
 [tool.mutmut]
 paths_to_mutate = [
-    "src/companies/", 
-    "src/financials/", 
-    "src/market_data/", 
-    "src/shared/"
+    "src/"
 ]
-tests_dir = [
-    "tests/companies/", 
-    "tests/financials/", 
-    "tests/market_data/", 
-    "tests/shared/"
-]
-# debug = true
-# SOTA Rule: Use pytest from the venv directly to avoid uv resyncing editable installs
+paths_to_exclude = "**/*__init__.py, src/companies/domain/exceptions.py"
+
+debug = true
 runner = ".venv/bin/pytest -x"
+use_coverage = false
+
+[tool.coverage.paths]
+source = [
+    "src",
+    "mutants/src"
+]

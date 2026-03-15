@@ -33,29 +33,51 @@ def _mutmut_trampoline(orig, mutants, call_args, call_kwargs, self_arg = None): 
     return result # type: ignore
 
 class CNPJ(RootModel[str]):
-    """
-    CNPJ Value Object.
-    Validates the Brazilian CNPJ format and check digits.
-    Uses Pydantic's RootModel to act seamlessly as a single string field in other entities.
+    """Brazilian National Corporate Taxpayer Registry (CNPJ) Value Object.
+
+    CNPJ is a fundamental identifier in the Brazilian financial domain. 
+    By encapsulating it in a Value Object, we guarantee that any Company 
+    entity possessing a CNPJ has been mathematically validated, preventing 
+    corrupt data from polluting the domain or database.
+
+    Attributes:
+        root (str): The raw, cleaned 14-digit CNPJ string.
     """
     
     @field_validator('root')
     @classmethod
     def validate_cnpj(cls, v: str, info: ValidationInfo) -> str:
+        """Validates the structure and veracity of the CNPJ string.
+
+        Simple length checks are insufficient; calculating check digits 
+        is the only way to programmatically verify that a CNPJ is legitimate 
+        before committing it to the Primary Store.
+
+        Args:
+            v (str): The input CNPJ string (raw or formatted).
+            info (ValidationInfo): Pydantic validation context.
+
+        Returns:
+            str: The cleaned 14-digit numeric string.
+
+        Raises:
+            ValueError: If the CNPJ is empty, has an invalid length, 
+                contains identical digits, or fails the Modulo 11 check.
+        """
         if not v:
             raise ValueError("CNPJ cannot be empty")
             
-        # Strip punctuation
+        # Strip non-numeric characters to normalize the input.
         cleaned = re.sub(r"[^\d]", "", v)
         
         if len(cleaned) != 14:
             raise ValueError(f"CNPJ must have exactly 14 digits, got {len(cleaned)}")
             
-        # Check for known invalid CNPJs (all same digits)
+        # Filter out sequences like '00000000000000' which pass length but are invalid.
         if len(set(cleaned)) == 1:
             raise ValueError("CNPJ has invalid format (all digits are the same)")
             
-        # Check digit algorithm
+        # Verify the veracity using the official mathematical algorithm.
         if not cls._validate_check_digits(cleaned):
             raise ValueError("CNPJ has invalid check digits")
             
@@ -63,13 +85,18 @@ class CNPJ(RootModel[str]):
         
     @classmethod
     def _validate_check_digits(cls, cnpj: str) -> bool:
-        """Fully calculates the Modulo 11 for the CNPJ"""
+        """Calculates the check digits using the Modulo 11 algorithm.
+
+        This is the standard validation logic defined by the 
+        Brazilian Federal Revenue Service (Receita Federal).
+        """
         
         def calculate_digit(cnpj_partial: str, weights: list[int]) -> str:
             sum_val = sum(int(n) * w for n, w in zip(cnpj_partial, weights))
             remainder = sum_val % 11
             return '0' if remainder < 2 else str(11 - remainder)
             
+        # Standard weights for the first and second check digits.
         weights_1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
         weights_2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
         
@@ -84,52 +111,122 @@ class CNPJ(RootModel[str]):
         return _mutmut_trampoline(object.__getattribute__(self, 'xǁCNPJǁformat__mutmut_orig'), object.__getattribute__(self, 'xǁCNPJǁformat__mutmut_mutants'), args, kwargs, self)
 
     def xǁCNPJǁformat__mutmut_orig(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_1(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = None
         return f"{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_2(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:3]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_3(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:2]}.{c[3:5]}.{c[5:8]}/{c[8:12]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_4(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:2]}.{c[2:6]}.{c[5:8]}/{c[8:12]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_5(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:2]}.{c[2:5]}.{c[6:8]}/{c[8:12]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_6(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:2]}.{c[2:5]}.{c[5:9]}/{c[8:12]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_7(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:2]}.{c[2:5]}.{c[5:8]}/{c[9:12]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_8(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:13]}-{c[12:]}"
 
     def xǁCNPJǁformat__mutmut_9(self) -> str:
-        """Returns the CNPJ formatted as XX.XXX.XXX/XXXX-XX"""
+        """Returns the CNPJ in its canonical human-readable format.
+
+        Used primarily for presentation in the API (Swagger/OpenAPI) 
+        and CLI tools to match the format expected by financial users.
+
+        Returns:
+            str: Formatted CNPJ (e.g., 'XX.XXX.XXX/XXXX-XX').
+        """
         c = self.root
         return f"{c[:2]}.{c[2:5]}.{c[5:8]}/{c[8:12]}-{c[13:]}"
     

@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from companies.domain.entities.company import Company
+from companies.domain.value_objects.cnpj import CNPJ
 from companies.infrastructure.adapters.database.models import Base, CompanyModel
 from companies.infrastructure.adapters.database.postgres_company_repository import PostgresCompanyRepository
 
@@ -26,20 +27,59 @@ def sample_company():
     return Company(
         ticker="PETR4",
         cvm_code="9512",
-        company_name="Petrobras",
+        company_name="Petróleo Brasileiro S.A. - Petrobras",
         trading_name="PETROBRAS",
-        cnpj="33000167000101",
-        sector="Energy"
+        cnpj=CNPJ("33000167000101"),
+        sector="Energy",
+        subsector="Oil, Gas and Biofuels",
+        segment="Exploration and Production",
+        website="https://www.petrobras.com.br",
+        status="A",
+        listing="BOLSA",
+        type="CI",
+        market_indicator="1",
+        has_quotation=True,
+        has_emissions=True,
+        has_bdr=False,
+        ticker_codes=["PETR4", "PETR3"],
+        isin_codes=["BRPETRACNOR9", "BRPETRACNPR6"]
     )
 
 def test_save_company_success(repo, db_session, sample_company):
+    # Action
     repo.save(sample_company)
     
     # Assert
     saved = db_session.query(CompanyModel).filter_by(ticker="PETR4").first()
     assert saved is not None
-    assert saved.company_name == "PETROBRAS"
-    assert saved.sector == "ENERGY"
+    # Entidade limpa o nome para uppercase internamente
+    assert saved.company_name == sample_company.company_name
+    assert saved.sector == sample_company.sector
+    assert saved.cnpj == sample_company.cnpj.root
+
+def test_mapping_integrity_roundtrip(repo, sample_company):
+    """
+    Testa se todos os atributos da entidade sobrevivem à ida e volta do banco de dados.
+    Isso garante que o _to_model e _to_entity mapeiem todos os campos corretamente.
+    """
+    import dataclasses
+    # Action
+    repo.save(sample_company)
+    fetched = repo.get_by_ticker(sample_company.ticker)
+    
+    # Assert
+    assert fetched is not None
+    
+    # Comparação exaustiva de campos
+    for f in dataclasses.fields(Company):
+        val_original = getattr(sample_company, f.name)
+        val_fetched = getattr(fetched, f.name)
+        
+        # Especial para Value Objects (CNPJ)
+        if f.name == "cnpj" and val_original:
+            assert val_fetched.root == val_original.root
+        else:
+            assert val_fetched == val_original, f"Mapeamento do campo '{f.name}' falhou no Round-trip"
 
 def test_get_by_ticker_success(repo, db_session, sample_company):
     # Setup
@@ -69,6 +109,8 @@ def test_save_batch_success(repo, db_session):
     # Assert
     all_companies = repo.get_all()
     assert len(all_companies) == 2
-    tickers = [c.ticker for c in all_companies]
-    assert "VALE3" in tickers
-    assert "ITUB4" in tickers
+    
+    indexed_companies = {c.ticker: c for c in all_companies}
+    assert indexed_companies["VALE3"].cvm_code == "4170"
+    assert indexed_companies["ITUB4"].cvm_code == "19348"
+    assert indexed_companies["VALE3"].sector == "Materials"

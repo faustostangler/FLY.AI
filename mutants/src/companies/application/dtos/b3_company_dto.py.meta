@@ -1,0 +1,51 @@
+{
+    "exit_code_by_key": {
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_1": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_2": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_3": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_4": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_5": 3,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_6": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_7": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_8": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_9": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_10": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_11": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_12": 3,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_13": 1,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_14": 1
+    },
+    "durations_by_key": {
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_1": 0.487101,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_2": 0.478332,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_3": 0.483414,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_4": 0.481379,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_7": 0.443058,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_6": 0.451199,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_10": 0.490463,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_8": 0.480864,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_9": 0.454604,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_11": 0.457833,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_12": 0.515249,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_13": 0.466935,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_14": 0.46439,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_5": 0.521826
+    },
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_1": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_2": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_3": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_4": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_5": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_6": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_7": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_8": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_9": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_10": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_11": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_12": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_13": 0.018395677019725554,
+        "companies.application.dtos.b3_company_dto.x\u01c1B3CompanyPayloadDTO\u01c1to_domain__mutmut_14": 0.018395677019725554
+    }
+}

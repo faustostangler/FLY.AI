@@ -1,0 +1,18 @@
+{
+    "exit_code_by_key": {
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_1": 3,
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_2": 1,
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_3": 0
+    },
+    "durations_by_key": {
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_1": 0.420955,
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_2": 0.425729,
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_3": 5.872033
+    },
+    "type_check_error_by_key": {},
+    "estimated_durations_by_key": {
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_1": 0.014726613007951528,
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_2": 0.014726613007951528,
+        "companies.domain.exceptions.x\u01c1CompanyDataValidationError\u01c1__init____mutmut_3": 0.014726613007951528
+    }
+}
