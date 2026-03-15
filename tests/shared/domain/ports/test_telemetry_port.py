@@ -64,32 +64,47 @@ class TestTelemetryPortContract:
 
     def test_abstract_methods_do_nothing(self):
         """Verify the abstract methods simply pass when explicitly called (e.g. via super)."""
+
         class DummyPort(TelemetryPort):
             def increment_active_sync_tasks(self):
                 super().increment_active_sync_tasks()
+
             def decrement_active_sync_tasks(self):
                 super().decrement_active_sync_tasks()
+
             def increment_companies_synced(self, count, status):
                 super().increment_companies_synced(count, status)
+
             def set_companies_by_sector(self, sector, count):
                 super().set_companies_by_sector(sector, count)
+
             def set_companies_by_segment(self, segment, count):
                 super().set_companies_by_segment(segment, count)
+
             def observe_sync_duration(self, context, duration):
                 super().observe_sync_duration(context, duration)
+
             def increment_date_parsing_failures(self, field, source):
                 super().increment_date_parsing_failures(field, source)
+
             def increment_b3_rate_limit_hits(self):
                 super().increment_b3_rate_limit_hits()
-            def increment_network_transmit_bytes(self, direction, context, payload_size):
-                super().increment_network_transmit_bytes(direction, context, payload_size)
+
+            def increment_network_transmit_bytes(
+                self, direction, context, payload_size
+            ):
+                super().increment_network_transmit_bytes(
+                    direction, context, payload_size
+                )
+
             def increment_data_validation_error(self, entity, field, reason):
                 super().increment_data_validation_error(entity, field, reason)
+
             def increment_generic_sync_error(self, type):
                 super().increment_generic_sync_error(type)
 
         port = DummyPort()
-        
+
         # Test each method to hit the "pass" block in the ABC
         port.increment_active_sync_tasks()
         port.decrement_active_sync_tasks()

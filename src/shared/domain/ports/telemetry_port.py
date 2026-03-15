@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class TelemetryPort(ABC):
     @abstractmethod
     def increment_active_sync_tasks(self) -> None:
@@ -34,11 +35,15 @@ class TelemetryPort(ABC):
         pass
 
     @abstractmethod
-    def increment_network_transmit_bytes(self, direction: str, context: str, payload_size: int) -> None:
+    def increment_network_transmit_bytes(
+        self, direction: str, context: str, payload_size: int
+    ) -> None:
         pass
 
     @abstractmethod
-    def increment_data_validation_error(self, entity: str, field: str, reason: str) -> None:
+    def increment_data_validation_error(
+        self, entity: str, field: str, reason: str
+    ) -> None:
         pass
 
     @abstractmethod

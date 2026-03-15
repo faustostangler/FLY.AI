@@ -63,10 +63,13 @@ class TestMetricRegistration:
 
     def test_counter_increment_succeeds(self):
         """Counters must be incrementable without raising."""
-        before = REGISTRY.get_sample_value(
-            "http_requests_total",
-            {"method": "GET", "endpoint": "/test_metric", "status": "200"},
-        ) or 0.0
+        before = (
+            REGISTRY.get_sample_value(
+                "http_requests_total",
+                {"method": "GET", "endpoint": "/test_metric", "status": "200"},
+            )
+            or 0.0
+        )
 
         metrics.HTTP_REQUESTS_TOTAL.labels(
             method="GET", endpoint="/test_metric", status="200"

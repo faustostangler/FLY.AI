@@ -9,21 +9,19 @@ Following the DDD testing strategy:
 """
 
 import os
-import sys
 
 # --- SOTA: Mutmut Sandbox Rehydration ---
-# Mutmut v3 only copies mutated files to `mutants/src/`. Python 3 treats these partial folders 
+# Mutmut v3 only copies mutated files to `mutants/src/`. Python 3 treats these partial folders
 # as namespace packages and falls back to original `src`, bypassing mutants entirely.
 # We intercept the Pytest bootstrap to rehydrate the missing __init__.py files.
 if os.getcwd().endswith("mutants"):
     os.system("cp -rn ../src/* ./src/ || true")
-    
+
 import pytest
-from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock
 
 # --- SOTA: Bootstrap Env Vars for Pre-Import Testing ---
-# Ensures that pydantic Settings() imported throughout src/ does not fail 
+# Ensures that pydantic Settings() imported throughout src/ does not fail
 # during pytest collection inside mutmut's isolated environments where .envs/ do not exist
 os.environ["DB__USER"] = os.environ.get("DB__USER", "test_user")
 os.environ["DB__PASSWORD"] = os.environ.get("DB__PASSWORD", "test_pass")
@@ -43,6 +41,7 @@ from shared.domain.ports.telemetry_port import TelemetryPort
 # ======================================================================
 # Domain Factories — Pure Entity Construction (No Infrastructure)
 # ======================================================================
+
 
 class CompanyFactory:
     """Factory for creating Company domain entities with sensible defaults.
@@ -95,6 +94,7 @@ class CompanyFactory:
 # Mock Factories — Port Doubles for Application Layer Tests
 # ======================================================================
 
+
 class MockTelemetryPort(TelemetryPort):
     """In-memory TelemetryPort double that records all calls.
 
@@ -132,11 +132,22 @@ class MockTelemetryPort(TelemetryPort):
     def increment_b3_rate_limit_hits(self) -> None:
         self._record("increment_b3_rate_limit_hits")
 
-    def increment_network_transmit_bytes(self, direction: str, context: str, payload_size: int) -> None:
-        self._record("increment_network_transmit_bytes", direction=direction, context=context, payload_size=payload_size)
+    def increment_network_transmit_bytes(
+        self, direction: str, context: str, payload_size: int
+    ) -> None:
+        self._record(
+            "increment_network_transmit_bytes",
+            direction=direction,
+            context=context,
+            payload_size=payload_size,
+        )
 
-    def increment_data_validation_error(self, entity: str, field: str, reason: str) -> None:
-        self._record("increment_data_validation_error", entity=entity, field=field, reason=reason)
+    def increment_data_validation_error(
+        self, entity: str, field: str, reason: str
+    ) -> None:
+        self._record(
+            "increment_data_validation_error", entity=entity, field=field, reason=reason
+        )
 
     def increment_generic_sync_error(self, type: str) -> None:
         self._record("increment_generic_sync_error", type=type)
@@ -149,6 +160,7 @@ class MockTelemetryPort(TelemetryPort):
 # ======================================================================
 # Pytest Fixtures
 # ======================================================================
+
 
 @pytest.fixture
 def company_factory():

@@ -2,11 +2,21 @@
 from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
-from shared.domain.utils.specs import And, Or, Not, Cmp, StrMatch, NullCheck, ListAny, Spec
+from shared.domain.utils.specs import (
+    And,
+    Or,
+    Not,
+    Cmp,
+    StrMatch,
+    NullCheck,
+    ListAny,
+    Spec,
+)
+
 
 @dataclass(frozen=True)
 class FilterBuilder:
-    '''
+    """
     Exemplo de estrutura de árvore aceita::
 
         {
@@ -46,26 +56,32 @@ class FilterBuilder:
     endswith → texto termina com o padrão.
     regex → casa com expressão regular.
     modificadores opcionais: case (sensível a maiúsculas), na (como tratar nulos).
-    
+
     # Listas ou colunas JSON (folhas ListAny)
     contains → elemento exato existe na lista.
     in → algum item da lista pertence ao conjunto informado.
     overlap → há interseção entre listas.
-    
+
     # Nulos (folhas NullCheck)
     valor None → é nulo (isnull).
     valor "isnull" → é nulo.
     valor "notnull" → não é nulo.
-    '''
+    """
 
     # aceita nomes e símbolos
     _cmp_map = {
-        "eq": "==", "==": "==",
-        "ne": "!=", "!=": "!=",
-        "gt": ">",  ">":  ">",
-        "gte": ">=",">=": ">=",
-        "lt": "<",  "<":  "<",
-        "lte": "<=","<=": "<=",
+        "eq": "==",
+        "==": "==",
+        "ne": "!=",
+        "!=": "!=",
+        "gt": ">",
+        ">": ">",
+        "gte": ">=",
+        ">=": ">=",
+        "lt": "<",
+        "<": "<",
+        "lte": "<=",
+        "<=": "<=",
         "in": "in",
         "nin": "nin",
         "between": "between",
@@ -94,23 +110,33 @@ class FilterBuilder:
                 return NullCheck(field, negate=(cond.lower() == "notnull"))
 
             # string matching, com suporte a contains + regex flag
-            if isinstance(cond, dict) and any(k in cond for k in FilterBuilder._str_modes):
+            if isinstance(cond, dict) and any(
+                k in cond for k in FilterBuilder._str_modes
+            ):
                 # se pediu contains + regex=True, trate como regex
                 if "contains" in cond and cond.get("regex", False) is True:
                     return StrMatch(
-                        field=field, mode="regex", pattern=str(cond["contains"]),
-                        case=cond.get("case", True), na=cond.get("na", False)
+                        field=field,
+                        mode="regex",
+                        pattern=str(cond["contains"]),
+                        case=cond.get("case", True),
+                        na=cond.get("na", False),
                     )
                 # modos diretos
                 for k in ("regex", "contains", "startswith", "endswith"):
                     if k in cond:
                         return StrMatch(
-                            field=field, mode=k, pattern=str(cond[k]),
-                            case=cond.get("case", True), na=cond.get("na", False)
+                            field=field,
+                            mode=k,
+                            pattern=str(cond[k]),
+                            case=cond.get("case", True),
+                            na=cond.get("na", False),
                         )
 
             # colunas lista/JSON
-            if isinstance(cond, dict) and any(k in cond for k in FilterBuilder._list_ops):
+            if isinstance(cond, dict) and any(
+                k in cond for k in FilterBuilder._list_ops
+            ):
                 for k in ("contains", "in", "overlap"):
                     if k in cond:
                         return ListAny(field=field, op=k, value=cond[k])

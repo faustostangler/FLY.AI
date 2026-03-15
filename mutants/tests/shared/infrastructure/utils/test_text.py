@@ -77,7 +77,11 @@ class TestTextCleaner:
     def test_clean_exception_returns_original(self):
         """Should catch internal exceptions and fallback to returning the original string."""
         from unittest.mock import patch
-        with patch("shared.infrastructure.utils.text.unidecode.unidecode", side_effect=Exception("Mocked Error")):
+
+        with patch(
+            "shared.infrastructure.utils.text.unidecode.unidecode",
+            side_effect=Exception("Mocked Error"),
+        ):
             result = TextCleaner.clean("Company A")
             assert result == "Company A"
 
@@ -87,10 +91,13 @@ class TestTextCleaner:
         import os
         from unittest.mock import patch
 
-        def mock_orig(): pass
+        def mock_orig():
+            pass
 
         with patch.dict(os.environ, {"MUTANT_UNDER_TEST": "fail"}):
-            with pytest.raises(Exception): # Catches MutmutProgrammaticFailException dynamically imported
+            with pytest.raises(
+                Exception
+            ):  # Catches MutmutProgrammaticFailException dynamically imported
                 _mutmut_trampoline(mock_orig, {}, [], {})
 
     def test_mutmut_trampoline_stats(self):
@@ -99,7 +106,7 @@ class TestTextCleaner:
         import os
         import sys
         from unittest.mock import patch, MagicMock
-        
+
         mock_orig = MagicMock(return_value="Success")
         mock_orig.__module__ = "test"
         mock_orig.__name__ = "mock_orig"
@@ -109,9 +116,12 @@ class TestTextCleaner:
             mock_main_module = MagicMock()
             mock_record = MagicMock()
             mock_main_module.record_trampoline_hit = mock_record
-            
+
             # Inject it into sys.modules so the from ... import works
-            with patch.dict(sys.modules, {"mutmut": MagicMock(), "mutmut.__main__": mock_main_module}):
+            with patch.dict(
+                sys.modules,
+                {"mutmut": MagicMock(), "mutmut.__main__": mock_main_module},
+            ):
                 result = _mutmut_trampoline(mock_orig, {}, [], {})
                 assert result == "Success"
                 mock_record.assert_called_once_with("test.mock_orig")
@@ -121,7 +131,7 @@ class TestTextCleaner:
         from shared.infrastructure.utils.text import _mutmut_trampoline
         import os
         from unittest.mock import patch, MagicMock
-        
+
         mock_orig = MagicMock(return_value="Original")
         mock_orig.__module__ = "test"
         mock_orig.__name__ = "mock_orig"
@@ -135,14 +145,14 @@ class TestTextCleaner:
         from shared.infrastructure.utils.text import _mutmut_trampoline
         import os
         from unittest.mock import patch, MagicMock
-        
+
         mock_orig = MagicMock()
         mock_orig.__module__ = "test"
         mock_orig.__name__ = "mock_orig"
-        
+
         mock_mutant = MagicMock(return_value="Mutated")
         # mutmut runtime splits by `__mutmut_` prefix but the right part of '.' partition usually is `test.mock_orig__mutmut_1` -> `test.mock_orig__mutmut_1` if no dots, or if standard `module.mock_orig__mutmut_1`
-        mutant_name = "test.mock_orig__mutmut_1".rpartition('.')[-1]
+        mutant_name = "test.mock_orig__mutmut_1".rpartition(".")[-1]
         mutants = {mutant_name: mock_mutant}
 
         with patch.dict(os.environ, {"MUTANT_UNDER_TEST": "test.mock_orig__mutmut_1"}):
@@ -155,17 +165,16 @@ class TestTextCleaner:
         from shared.infrastructure.utils.text import _mutmut_trampoline
         import os
         from unittest.mock import patch, MagicMock
-        
+
         mock_orig = MagicMock()
         mock_orig.__module__ = "test"
         mock_orig.__name__ = "mock_orig"
-        
+
         mock_mutant = MagicMock(return_value="Mutated")
-        mutant_name = "test.mock_orig__mutmut_1".rpartition('.')[-1]
-        mutants = {mutant_name: mock_mutant} 
+        mutant_name = "test.mock_orig__mutmut_1".rpartition(".")[-1]
+        mutants = {mutant_name: mock_mutant}
 
         with patch.dict(os.environ, {"MUTANT_UNDER_TEST": "test.mock_orig__mutmut_1"}):
             result = _mutmut_trampoline(mock_orig, mutants, [], {})
             assert result == "Mutated"
             mock_mutant.assert_called_with()
-

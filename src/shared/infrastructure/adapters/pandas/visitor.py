@@ -1,23 +1,25 @@
 # infrastructure/utils/pandas_visitor.py
 import pandas as pd
-import numpy as np
 import re
-from typing import Iterable
 from .types import ensure_datetime_col, ensure_list_col
+
 
 class PandasVisitor:
     """Converte Spec -> mask booleana, respeitando tipo da coluna."""
-    def visit_and(self, node, df): 
+
+    def visit_and(self, node, df):
         m = pd.Series(True, index=df.index)
-        for it in node.items: m &= it.accept(self, df)
+        for it in node.items:
+            m &= it.accept(self, df)
         return m
 
     def visit_or(self, node, df):
         m = pd.Series(False, index=df.index)
-        for it in node.items: m |= it.accept(self, df)
+        for it in node.items:
+            m |= it.accept(self, df)
         return m
 
-    def visit_not(self, node, df): 
+    def visit_not(self, node, df):
         return ~node.item.accept(self, df)
 
     def visit_null(self, node, df):
@@ -41,12 +43,18 @@ class PandasVisitor:
         if op == "between":
             low, high = val
             return s.between(low, high, inclusive="both")
-        if op == "==":  return s.eq(val)
-        if op == "!=":  return s.ne(val)
-        if op == ">":   return s.gt(val)
-        if op == ">=":  return s.ge(val)
-        if op == "<":   return s.lt(val)
-        if op == "<=":  return s.le(val)
+        if op == "==":
+            return s.eq(val)
+        if op == "!=":
+            return s.ne(val)
+        if op == ">":
+            return s.gt(val)
+        if op == ">=":
+            return s.ge(val)
+        if op == "<":
+            return s.lt(val)
+        if op == "<=":
+            return s.le(val)
         raise ValueError(f"Operador desconhecido: {op}")
 
     def visit_str(self, node, df):
@@ -54,7 +62,9 @@ class PandasVisitor:
         if node.mode == "regex":
             return s.str.contains(node.pattern, case=node.case, regex=True, na=node.na)
         if node.mode == "contains":
-            return s.str.contains(re.escape(node.pattern), case=node.case, regex=True, na=node.na)
+            return s.str.contains(
+                re.escape(node.pattern), case=node.case, regex=True, na=node.na
+            )
         if node.mode == "startswith":
             return s.str.startswith(node.pattern, na=node.na)
         if node.mode == "endswith":
@@ -68,7 +78,14 @@ class PandasVisitor:
             x = str(node.value)
             return s.apply(lambda xs: any(x == str(i) for i in xs))
         if node.op == "in":
-            vals = {str(v) for v in (node.value if isinstance(node.value, (list, tuple, set)) else [node.value])}
+            vals = {
+                str(v)
+                for v in (
+                    node.value
+                    if isinstance(node.value, (list, tuple, set))
+                    else [node.value]
+                )
+            }
             return s.apply(lambda xs: any(str(i) in vals for i in xs))
         if node.op == "overlap":
             vals = {str(v) for v in node.value}

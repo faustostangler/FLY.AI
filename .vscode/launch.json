@@ -15,7 +15,12 @@
                 "--reload"
             ],
             "jinja": true,
-            "justMyCode": true
+            "justMyCode": true,
+            "env": {
+                "DB__HOST": "127.0.0.1",
+                "REDIS__HOST": "127.0.0.1",
+                "OTLP_ENDPOINT": "http://127.0.0.1:4317"
+            }
         }
     ]
 }

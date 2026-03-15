@@ -40,7 +40,7 @@ class TestDomainBaseClasses:
         obj = ObjectFromAttributes(name="Test Name", age=30)
         # Using Pydantic V2 model_validate
         entity = DummyEntity.model_validate(obj)
-        
+
         assert entity.name == "Test Name"
         assert entity.age == 30
 
@@ -48,7 +48,7 @@ class TestDomainBaseClasses:
         """AggregateRoot should inherit the 'from_attributes' configuration of Entity."""
         obj = ObjectFromAttributes(id="agg-123", status="active")
         agg = DummyAggregateRoot.model_validate(obj)
-        
+
         assert agg.id == "agg-123"
         assert agg.status == "active"
         assert isinstance(agg, Entity)
@@ -56,15 +56,15 @@ class TestDomainBaseClasses:
     def test_value_object_is_immutable(self):
         """Value Objects describe characteristics; thus they must be frozen (immutable)."""
         vo = DummyValueObject(currency="USD", amount=100.50)
-        
+
         with pytest.raises(ValidationError):
             vo.amount = 200.00
-            
+
     def test_value_object_equality(self):
         """Two Value Objects with identical attributes must be considered equal."""
         vo1 = DummyValueObject(currency="USD", amount=100.50)
         vo2 = DummyValueObject(currency="USD", amount=100.50)
         vo3 = DummyValueObject(currency="BRL", amount=100.50)
-        
+
         assert vo1 == vo2
         assert vo1 != vo3

@@ -2,42 +2,54 @@
 from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
-from shared.domain.utils.specs import And, Or, Not, Cmp, StrMatch, NullCheck, ListAny, Spec
+from shared.domain.utils.specs import (
+    And,
+    Or,
+    Not,
+    Cmp,
+    StrMatch,
+    NullCheck,
+    ListAny,
+    Spec,
+)
 from typing import Annotated
 from typing import Callable
-from typing import ClassVar
 
-MutantDict = Annotated[dict[str, Callable], "Mutant"] # type: ignore
+MutantDict = Annotated[dict[str, Callable], "Mutant"]  # type: ignore
 
 
-def _mutmut_trampoline(orig, mutants, call_args, call_kwargs, self_arg = None): # type: ignore
+def _mutmut_trampoline(orig, mutants, call_args, call_kwargs, self_arg=None):  # type: ignore
     """Forward call to original or mutated function, depending on the environment"""
-    import os # type: ignore
-    mutant_under_test = os.environ['MUTANT_UNDER_TEST'] # type: ignore
-    if mutant_under_test == 'fail': # type: ignore
-        from mutmut.__main__ import MutmutProgrammaticFailException # type: ignore
-        raise MutmutProgrammaticFailException('Failed programmatically')       # type: ignore
-    elif mutant_under_test == 'stats': # type: ignore
-        from mutmut.__main__ import record_trampoline_hit # type: ignore
-        record_trampoline_hit(orig.__module__ + '.' + orig.__name__) # type: ignore
+    import os  # type: ignore
+
+    mutant_under_test = os.environ["MUTANT_UNDER_TEST"]  # type: ignore
+    if mutant_under_test == "fail":  # type: ignore
+        from mutmut.__main__ import MutmutProgrammaticFailException  # type: ignore
+
+        raise MutmutProgrammaticFailException("Failed programmatically")  # type: ignore
+    elif mutant_under_test == "stats":  # type: ignore
+        from mutmut.__main__ import record_trampoline_hit  # type: ignore
+
+        record_trampoline_hit(orig.__module__ + "." + orig.__name__)  # type: ignore
         # (for class methods, orig is bound and thus does not need the explicit self argument)
-        result = orig(*call_args, **call_kwargs) # type: ignore
-        return result # type: ignore
-    prefix = orig.__module__ + '.' + orig.__name__ + '__mutmut_' # type: ignore
-    if not mutant_under_test.startswith(prefix): # type: ignore
-        result = orig(*call_args, **call_kwargs) # type: ignore
-        return result # type: ignore
-    mutant_name = mutant_under_test.rpartition('.')[-1] # type: ignore
-    if self_arg is not None: # type: ignore
+        result = orig(*call_args, **call_kwargs)  # type: ignore
+        return result  # type: ignore
+    prefix = orig.__module__ + "." + orig.__name__ + "__mutmut_"  # type: ignore
+    if not mutant_under_test.startswith(prefix):  # type: ignore
+        result = orig(*call_args, **call_kwargs)  # type: ignore
+        return result  # type: ignore
+    mutant_name = mutant_under_test.rpartition(".")[-1]  # type: ignore
+    if self_arg is not None:  # type: ignore
         # call to a class method where self is not bound
-        result = mutants[mutant_name](self_arg, *call_args, **call_kwargs) # type: ignore
+        result = mutants[mutant_name](self_arg, *call_args, **call_kwargs)  # type: ignore
     else:
-        result = mutants[mutant_name](*call_args, **call_kwargs) # type: ignore
-    return result # type: ignore
+        result = mutants[mutant_name](*call_args, **call_kwargs)  # type: ignore
+    return result  # type: ignore
+
 
 @dataclass(frozen=True)
 class FilterBuilder:
-    '''
+    """
     Exemplo de estrutura de árvore aceita::
 
         {
@@ -77,26 +89,32 @@ class FilterBuilder:
     endswith → texto termina com o padrão.
     regex → casa com expressão regular.
     modificadores opcionais: case (sensível a maiúsculas), na (como tratar nulos).
-    
+
     # Listas ou colunas JSON (folhas ListAny)
     contains → elemento exato existe na lista.
     in → algum item da lista pertence ao conjunto informado.
     overlap → há interseção entre listas.
-    
+
     # Nulos (folhas NullCheck)
     valor None → é nulo (isnull).
     valor "isnull" → é nulo.
     valor "notnull" → não é nulo.
-    '''
+    """
 
     # aceita nomes e símbolos
     _cmp_map = {
-        "eq": "==", "==": "==",
-        "ne": "!=", "!=": "!=",
-        "gt": ">",  ">":  ">",
-        "gte": ">=",">=": ">=",
-        "lt": "<",  "<":  "<",
-        "lte": "<=","<=": "<=",
+        "eq": "==",
+        "==": "==",
+        "ne": "!=",
+        "!=": "!=",
+        "gt": ">",
+        ">": ">",
+        "gte": ">=",
+        ">=": ">=",
+        "lt": "<",
+        "<": "<",
+        "lte": "<=",
+        "<=": "<=",
         "in": "in",
         "nin": "nin",
         "between": "between",
@@ -125,23 +143,33 @@ class FilterBuilder:
                 return NullCheck(field, negate=(cond.lower() == "notnull"))
 
             # string matching, com suporte a contains + regex flag
-            if isinstance(cond, dict) and any(k in cond for k in FilterBuilder._str_modes):
+            if isinstance(cond, dict) and any(
+                k in cond for k in FilterBuilder._str_modes
+            ):
                 # se pediu contains + regex=True, trate como regex
                 if "contains" in cond and cond.get("regex", False) is True:
                     return StrMatch(
-                        field=field, mode="regex", pattern=str(cond["contains"]),
-                        case=cond.get("case", True), na=cond.get("na", False)
+                        field=field,
+                        mode="regex",
+                        pattern=str(cond["contains"]),
+                        case=cond.get("case", True),
+                        na=cond.get("na", False),
                     )
                 # modos diretos
                 for k in ("regex", "contains", "startswith", "endswith"):
                     if k in cond:
                         return StrMatch(
-                            field=field, mode=k, pattern=str(cond[k]),
-                            case=cond.get("case", True), na=cond.get("na", False)
+                            field=field,
+                            mode=k,
+                            pattern=str(cond[k]),
+                            case=cond.get("case", True),
+                            na=cond.get("na", False),
                         )
 
             # colunas lista/JSON
-            if isinstance(cond, dict) and any(k in cond for k in FilterBuilder._list_ops):
+            if isinstance(cond, dict) and any(
+                k in cond for k in FilterBuilder._list_ops
+            ):
                 for k in ("contains", "in", "overlap"):
                     if k in cond:
                         return ListAny(field=field, op=k, value=cond[k])

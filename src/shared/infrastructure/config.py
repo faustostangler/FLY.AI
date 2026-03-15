@@ -28,6 +28,7 @@ class AppSettings(BaseModel):
         log_dir (str): Directory where structural logs are persisted.
         log_name (str): Filename for primary application logs.
     """
+
     title: str = "FLY.AI Finance Data"
     description: str = "SOTA Finance Data Platform using DDD and Hexagonal Architecture"
     version: str = "0.2.0"
@@ -54,10 +55,13 @@ class DatabaseSettings(BaseModel):
         port (int): Listening port for the database service.
         connection_timeout (int): Grace period before failing a connection attempt.
     """
+
     url: str = Field(description="Full connection string (Strictly typed as str)")
-    
+
     user: Optional[str] = Field(default=None, description="DB user (DB__USER)")
-    password: Optional[str] = Field(default=None, description="DB password (DB__PASSWORD)")
+    password: Optional[str] = Field(
+        default=None, description="DB password (DB__PASSWORD)"
+    )
     name: Optional[str] = Field(default=None, description="DB name (DB__NAME)")
     host: str = Field(default="localhost", description="DB host (DB__HOST)")
     port: int = Field(default=5432, description="DB port (DB__PORT)")
@@ -65,13 +69,13 @@ class DatabaseSettings(BaseModel):
 
     model_config = {"extra": "ignore", "populate_by_name": True}
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def assemble_or_validate(cls, values: dict) -> dict:
         """Assembles the SQLAlchemy URL from atomic fields if the full URL is not provided.
 
         This ensures a Single Source of Truth (SSOT) for the connection string,
-        preventing configuration drift where credentials in individual fields 
+        preventing configuration drift where credentials in individual fields
         differ from the one in the full URL.
 
         Args:
@@ -84,13 +88,13 @@ class DatabaseSettings(BaseModel):
             ValueError: If both partial credentials and a full URL are provided,
                 or if neither is sufficient to establish a connection.
         """
-        url = values.get('url')
-        user = values.get('user')
-        password = values.get('password')
-        name = values.get('name')
-        
-        host = values.get('host', 'localhost')
-        port = values.get('port', 5432)
+        url = values.get("url")
+        user = values.get("user")
+        password = values.get("password")
+        name = values.get("name")
+
+        host = values.get("host", "localhost")
+        port = values.get("port", 5432)
 
         has_atomic_credentials = bool(user or password or name)
         is_fully_atomic = bool(user and password and name)
@@ -104,12 +108,14 @@ class DatabaseSettings(BaseModel):
 
         if url:
             return values
-        
+
         if is_fully_atomic:
-             # Construct canonical URL for SQLAlchemy engine initialization.
-            values['url'] = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
+            # Construct canonical URL for SQLAlchemy engine initialization.
+            values["url"] = (
+                f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
+            )
             return values
-            
+
         raise ValueError("Database configuration is incomplete.")
 
 
@@ -124,20 +130,21 @@ class RedisSettings(BaseModel):
         port (int): Listening port for the Redis service.
         db (int): Logical database index within the Redis instance.
     """
+
     url: str = Field(description="Full Redis URL (Strictly typed as str)")
-    
+
     host: str = Field(default="localhost", description="Redis host (REDIS__HOST)")
     port: int = Field(default=6379, description="Redis port (REDIS__PORT)")
     db: int = Field(default=0, description="Redis DB index (REDIS__DB)")
 
     model_config = {"extra": "ignore"}
 
-    @model_validator(mode='before')
+    @model_validator(mode="before")
     @classmethod
     def assemble_redis_url(cls, values: dict) -> dict:
         """Enforces a canonical Redis URL for uniform adapter initialization.
 
-        Providing multiple ways to define the connection can lead to 
+        Providing multiple ways to define the connection can lead to
         hard-to-debug misconfigurations in distributed environments.
 
         Args:
@@ -149,23 +156,25 @@ class RedisSettings(BaseModel):
         Raises:
             ValueError: If configuration is ambiguous or insufficient.
         """
-        url = values.get('url')
-        host = values.get('host', 'localhost')
-        port = values.get('port', 6379)
-        db = values.get('db', 0)
-        
-        has_atomic_credentials = bool('host' in values or 'port' in values or 'db' in values)
+        url = values.get("url")
+        host = values.get("host", "localhost")
+        port = values.get("port", 6379)
+        db = values.get("db", 0)
+
+        has_atomic_credentials = bool(
+            "host" in values or "port" in values or "db" in values
+        )
 
         if url and has_atomic_credentials:
-             raise ValueError(
+            raise ValueError(
                 "CRITICAL CONFIG CONFLICT: Choose to provide EITHER 'REDIS__URL' OR "
                 "the atomic credentials ('REDIS__HOST', 'REDIS__PORT', 'REDIS__DB')."
             )
 
         if url:
             return values
-            
-        values['url'] = f"redis://{host}:{port}/{db}"
+
+        values["url"] = f"redis://{host}:{port}/{db}"
         return values
 
 
@@ -179,19 +188,18 @@ class B3Settings(BaseModel):
         initial_companies_api (str): B3 endpoint for fetching the initial company list.
         detail_api (str): Endpoint for fine-grained company metadata.
         financial_api (str): Endpoint for downloading historical financial reports.
+        referer_url (str): The common Referer header required for B3 API calls.
         words_to_remove (list[str]): Noise phrases found in B3 data that must be scrubbed
             to maintain Domain integrity (e.g., 'EM RECUPERACAO JUDICIAL').
     """
-    homepage_url: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesPage/?language=pt-br"
-    initial_companies_api: str = (
-        "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetInitialCompanies/"
+
+    homepage_url: str = (
+        "https://sistemaswebb3-listados.b3.com.br/listedCompaniesPage/?language=pt-br"
     )
-    detail_api: str = (
-        "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetDetail/"
-    )
-    financial_api: str = (
-        "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedFinancial/"
-    )
+    initial_companies_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetInitialCompanies/"
+    detail_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetDetail/"
+    financial_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedFinancial/"
+    referer_url: str = "https://sistemaswebb3-listados.b3.com.br/"
     words_to_remove: list[str] = [
         "  EM LIQUIDACAO",
         " EM LIQUIDACAO",
@@ -215,6 +223,7 @@ class OtelSettings(BaseModel):
         service_name (str): Identifier for this service within the trace topology.
         enabled (bool): Toggle for telemetry collection to avoid overhead in lean environments.
     """
+
     endpoint: str = Field(
         default="http://tempo:4317",
         description="OTLP gRPC endpoint for trace export",
@@ -236,6 +245,7 @@ class Settings(BaseSettings):
     Utilizes __ as a nested delimiter to allow environment variables like
     APP__DEBUG=true to be mapped to settings.app.debug.
     """
+
     app: AppSettings = AppSettings()
     db: DatabaseSettings
     redis: RedisSettings = RedisSettings()
@@ -252,6 +262,6 @@ class Settings(BaseSettings):
 
 
 # System-wide Settings Singleton.
-# Initialized at import-time to enforce a Fail-Fast startup strategy if 
+# Initialized at import-time to enforce a Fail-Fast startup strategy if
 # critical environment variables (like DB credentials) are missing.
 settings = Settings()

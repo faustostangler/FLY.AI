@@ -4,9 +4,10 @@ from companies.domain.entities.company import Company
 from companies.domain.value_objects.cnpj import CNPJ
 from companies.infrastructure.adapters.database.models import CompanyModel
 
+
 class CompanyDataMapper:
     """
-    Data Mapper SOTA: Isola completamente a conversão bidirecional entre 
+    Data Mapper SOTA: Isola completamente a conversão bidirecional entre
     Entidades de Domínio (Python puro) e Modelos de Infraestrutura (SQLAlchemy).
     """
 
@@ -40,7 +41,7 @@ class CompanyDataMapper:
             type_bdr=entity.type_bdr,
             has_quotation=entity.has_quotation,
             has_emissions=entity.has_emissions,
-            has_bdr=entity.has_bdr
+            has_bdr=entity.has_bdr,
         )
 
     @staticmethod
@@ -50,7 +51,7 @@ class CompanyDataMapper:
             ticker_codes = json.loads(model.ticker_codes) if model.ticker_codes else []
         except (json.JSONDecodeError, TypeError):
             ticker_codes = []
-            
+
         try:
             isin_codes = json.loads(model.isin_codes) if model.isin_codes else []
         except (json.JSONDecodeError, TypeError):
@@ -83,7 +84,7 @@ class CompanyDataMapper:
             type_bdr=model.type_bdr,
             has_quotation=model.has_quotation,
             has_emissions=model.has_emissions,
-            has_bdr=model.has_bdr
+            has_bdr=model.has_bdr,
         )
 
     @staticmethod
@@ -92,9 +93,10 @@ class CompanyDataMapper:
         Gera um dicionário puro para persistência, eliminando metadados do ORM.
         """
         model = CompanyDataMapper.to_model(entity)
-        # Extrai apenas as colunas declaradas no SQLAlchemy (ignorando ID auto-incremental)
+        # Extrai apenas as colunas declaradas no SQLAlchemy (ignorando ID e auditoria)
+        exclude = ["id", "created_at", "updated_at", "ingested_at"]
         return {
-            c.name: getattr(model, c.name) 
-            for c in CompanyModel.__table__.columns 
-            if c.name != 'id'
+            c.name: getattr(model, c.name)
+            for c in CompanyModel.__table__.columns
+            if c.name not in exclude
         }

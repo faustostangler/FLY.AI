@@ -1,8 +1,8 @@
 """OpenTelemetry Tracing Setup — Distributed Observability Infrastructure.
 
-This module assembles the tracing pipeline, connecting the system to 
+This module assembles the tracing pipeline, connecting the system to
 Grafana Tempo for distributed tracing and Loki for log correlation.
-Strict adherence to Hexagonal Architecture ensures that the Domain layer 
+Strict adherence to Hexagonal Architecture ensures that the Domain layer
 remains pure and unaware of this instrumentation.
 """
 
@@ -24,54 +24,63 @@ from typing import Annotated
 from typing import Callable
 from typing import ClassVar
 
-MutantDict = Annotated[dict[str, Callable], "Mutant"] # type: ignore
+MutantDict = Annotated[dict[str, Callable], "Mutant"]  # type: ignore
 
 
-def _mutmut_trampoline(orig, mutants, call_args, call_kwargs, self_arg = None): # type: ignore
+def _mutmut_trampoline(orig, mutants, call_args, call_kwargs, self_arg=None):  # type: ignore
     """Forward call to original or mutated function, depending on the environment"""
-    import os # type: ignore
-    mutant_under_test = os.environ['MUTANT_UNDER_TEST'] # type: ignore
-    if mutant_under_test == 'fail': # type: ignore
-        from mutmut.__main__ import MutmutProgrammaticFailException # type: ignore
-        raise MutmutProgrammaticFailException('Failed programmatically')       # type: ignore
-    elif mutant_under_test == 'stats': # type: ignore
-        from mutmut.__main__ import record_trampoline_hit # type: ignore
-        record_trampoline_hit(orig.__module__ + '.' + orig.__name__) # type: ignore
+    import os  # type: ignore
+
+    mutant_under_test = os.environ["MUTANT_UNDER_TEST"]  # type: ignore
+    if mutant_under_test == "fail":  # type: ignore
+        from mutmut.__main__ import MutmutProgrammaticFailException  # type: ignore
+
+        raise MutmutProgrammaticFailException("Failed programmatically")  # type: ignore
+    elif mutant_under_test == "stats":  # type: ignore
+        from mutmut.__main__ import record_trampoline_hit  # type: ignore
+
+        record_trampoline_hit(orig.__module__ + "." + orig.__name__)  # type: ignore
         # (for class methods, orig is bound and thus does not need the explicit self argument)
-        result = orig(*call_args, **call_kwargs) # type: ignore
-        return result # type: ignore
-    prefix = orig.__module__ + '.' + orig.__name__ + '__mutmut_' # type: ignore
-    if not mutant_under_test.startswith(prefix): # type: ignore
-        result = orig(*call_args, **call_kwargs) # type: ignore
-        return result # type: ignore
-    mutant_name = mutant_under_test.rpartition('.')[-1] # type: ignore
-    if self_arg is not None: # type: ignore
+        result = orig(*call_args, **call_kwargs)  # type: ignore
+        return result  # type: ignore
+    prefix = orig.__module__ + "." + orig.__name__ + "__mutmut_"  # type: ignore
+    if not mutant_under_test.startswith(prefix):  # type: ignore
+        result = orig(*call_args, **call_kwargs)  # type: ignore
+        return result  # type: ignore
+    mutant_name = mutant_under_test.rpartition(".")[-1]  # type: ignore
+    if self_arg is not None:  # type: ignore
         # call to a class method where self is not bound
-        result = mutants[mutant_name](self_arg, *call_args, **call_kwargs) # type: ignore
+        result = mutants[mutant_name](self_arg, *call_args, **call_kwargs)  # type: ignore
     else:
-        result = mutants[mutant_name](*call_args, **call_kwargs) # type: ignore
-    return result # type: ignore
+        result = mutants[mutant_name](*call_args, **call_kwargs)  # type: ignore
+    return result  # type: ignore
 
 
 class OTelLogFilter(logging.Filter):
     """Enriches log records with OpenTelemetry context for correlation.
 
-    Injected Trace IDs and Span IDs allow for seamless pivoting between 
-    logs in Loki and traces in Tempo within Grafana. Without this correlation, 
+    Injected Trace IDs and Span IDs allow for seamless pivoting between
+    logs in Loki and traces in Tempo within Grafana. Without this correlation,
     debugging distributed failures becomes a needle-in-a-haystack operation.
 
     Format placeholders available for log formatters: %(trace_id)s, %(span_id)s
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        args = [record]# type: ignore
-        kwargs = {}# type: ignore
-        return _mutmut_trampoline(object.__getattribute__(self, 'xǁOTelLogFilterǁfilter__mutmut_orig'), object.__getattribute__(self, 'xǁOTelLogFilterǁfilter__mutmut_mutants'), args, kwargs, self)
+        args = [record]  # type: ignore
+        kwargs = {}  # type: ignore
+        return _mutmut_trampoline(
+            object.__getattribute__(self, "xǁOTelLogFilterǁfilter__mutmut_orig"),
+            object.__getattribute__(self, "xǁOTelLogFilterǁfilter__mutmut_mutants"),
+            args,
+            kwargs,
+            self,
+        )
 
     def xǁOTelLogFilterǁfilter__mutmut_orig(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -88,7 +97,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -98,7 +107,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_1(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -115,7 +124,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -125,7 +134,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_2(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -142,7 +151,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -152,7 +161,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_3(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -169,7 +178,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -179,7 +188,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_4(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -196,7 +205,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -206,7 +215,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_5(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -223,7 +232,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -233,7 +242,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_6(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -250,7 +259,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = None  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -260,7 +269,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_7(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -277,7 +286,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(None, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -287,7 +296,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_8(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -304,7 +313,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, None)  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -314,7 +323,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_9(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -331,7 +340,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format("032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -341,7 +350,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_10(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -355,10 +364,12 @@ class OTelLogFilter(logging.Filter):
 
         # If we have an active, recordable span, inject hex-encoded IDs.
         if span.is_recording() and ctx.trace_id != 0:
-            record.trace_id = format(ctx.trace_id, )  # type: ignore[attr-defined]
+            record.trace_id = format(
+                ctx.trace_id,
+            )  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -368,7 +379,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_11(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -385,7 +396,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "XX032xXX")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -395,7 +406,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_12(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -412,7 +423,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032X")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -422,7 +433,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_13(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -439,7 +450,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = None  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -449,7 +460,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_14(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -466,7 +477,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(None, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -476,7 +487,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_15(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -493,7 +504,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, None)  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -503,7 +514,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_16(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -520,7 +531,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format("016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -530,7 +541,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_17(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -545,9 +556,11 @@ class OTelLogFilter(logging.Filter):
         # If we have an active, recordable span, inject hex-encoded IDs.
         if span.is_recording() and ctx.trace_id != 0:
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
-            record.span_id = format(ctx.span_id, )  # type: ignore[attr-defined]
+            record.span_id = format(
+                ctx.span_id,
+            )  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -557,7 +570,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_18(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -574,7 +587,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "XX016xXX")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -584,7 +597,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_19(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -601,7 +614,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016X")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -611,7 +624,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_20(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -628,7 +641,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = None  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -638,7 +651,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_21(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -655,7 +668,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" / 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -665,7 +678,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_22(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -682,7 +695,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "XX0XX" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -692,7 +705,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_23(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -709,7 +722,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 33  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
@@ -719,7 +732,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_24(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -736,7 +749,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = None  # type: ignore[attr-defined]
@@ -746,7 +759,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_25(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -763,7 +776,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" / 16  # type: ignore[attr-defined]
@@ -773,7 +786,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_26(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -790,7 +803,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "XX0XX" * 16  # type: ignore[attr-defined]
@@ -800,7 +813,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_27(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -817,7 +830,7 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 17  # type: ignore[attr-defined]
@@ -827,7 +840,7 @@ class OTelLogFilter(logging.Filter):
     def xǁOTelLogFilterǁfilter__mutmut_28(self, record: logging.LogRecord) -> bool:
         """Injects OTel metadata into every LogRecord passed through this filter.
 
-        Standard logging doesn't know about the current execution context. 
+        Standard logging doesn't know about the current execution context.
         We extract it here to ensure every log line is traceable.
 
         Args:
@@ -844,44 +857,44 @@ class OTelLogFilter(logging.Filter):
             record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
             record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
         else:
-            # Provide zeroed defaults to avoid KeyError in format strings 
+            # Provide zeroed defaults to avoid KeyError in format strings
             # when no trace context exists.
             record.trace_id = "0" * 32  # type: ignore[attr-defined]
             record.span_id = "0" * 16  # type: ignore[attr-defined]
 
         return False
-    
-    xǁOTelLogFilterǁfilter__mutmut_mutants : ClassVar[MutantDict] = { # type: ignore
-    'xǁOTelLogFilterǁfilter__mutmut_1': xǁOTelLogFilterǁfilter__mutmut_1, 
-        'xǁOTelLogFilterǁfilter__mutmut_2': xǁOTelLogFilterǁfilter__mutmut_2, 
-        'xǁOTelLogFilterǁfilter__mutmut_3': xǁOTelLogFilterǁfilter__mutmut_3, 
-        'xǁOTelLogFilterǁfilter__mutmut_4': xǁOTelLogFilterǁfilter__mutmut_4, 
-        'xǁOTelLogFilterǁfilter__mutmut_5': xǁOTelLogFilterǁfilter__mutmut_5, 
-        'xǁOTelLogFilterǁfilter__mutmut_6': xǁOTelLogFilterǁfilter__mutmut_6, 
-        'xǁOTelLogFilterǁfilter__mutmut_7': xǁOTelLogFilterǁfilter__mutmut_7, 
-        'xǁOTelLogFilterǁfilter__mutmut_8': xǁOTelLogFilterǁfilter__mutmut_8, 
-        'xǁOTelLogFilterǁfilter__mutmut_9': xǁOTelLogFilterǁfilter__mutmut_9, 
-        'xǁOTelLogFilterǁfilter__mutmut_10': xǁOTelLogFilterǁfilter__mutmut_10, 
-        'xǁOTelLogFilterǁfilter__mutmut_11': xǁOTelLogFilterǁfilter__mutmut_11, 
-        'xǁOTelLogFilterǁfilter__mutmut_12': xǁOTelLogFilterǁfilter__mutmut_12, 
-        'xǁOTelLogFilterǁfilter__mutmut_13': xǁOTelLogFilterǁfilter__mutmut_13, 
-        'xǁOTelLogFilterǁfilter__mutmut_14': xǁOTelLogFilterǁfilter__mutmut_14, 
-        'xǁOTelLogFilterǁfilter__mutmut_15': xǁOTelLogFilterǁfilter__mutmut_15, 
-        'xǁOTelLogFilterǁfilter__mutmut_16': xǁOTelLogFilterǁfilter__mutmut_16, 
-        'xǁOTelLogFilterǁfilter__mutmut_17': xǁOTelLogFilterǁfilter__mutmut_17, 
-        'xǁOTelLogFilterǁfilter__mutmut_18': xǁOTelLogFilterǁfilter__mutmut_18, 
-        'xǁOTelLogFilterǁfilter__mutmut_19': xǁOTelLogFilterǁfilter__mutmut_19, 
-        'xǁOTelLogFilterǁfilter__mutmut_20': xǁOTelLogFilterǁfilter__mutmut_20, 
-        'xǁOTelLogFilterǁfilter__mutmut_21': xǁOTelLogFilterǁfilter__mutmut_21, 
-        'xǁOTelLogFilterǁfilter__mutmut_22': xǁOTelLogFilterǁfilter__mutmut_22, 
-        'xǁOTelLogFilterǁfilter__mutmut_23': xǁOTelLogFilterǁfilter__mutmut_23, 
-        'xǁOTelLogFilterǁfilter__mutmut_24': xǁOTelLogFilterǁfilter__mutmut_24, 
-        'xǁOTelLogFilterǁfilter__mutmut_25': xǁOTelLogFilterǁfilter__mutmut_25, 
-        'xǁOTelLogFilterǁfilter__mutmut_26': xǁOTelLogFilterǁfilter__mutmut_26, 
-        'xǁOTelLogFilterǁfilter__mutmut_27': xǁOTelLogFilterǁfilter__mutmut_27, 
-        'xǁOTelLogFilterǁfilter__mutmut_28': xǁOTelLogFilterǁfilter__mutmut_28
+
+    xǁOTelLogFilterǁfilter__mutmut_mutants: ClassVar[MutantDict] = {  # type: ignore
+        "xǁOTelLogFilterǁfilter__mutmut_1": xǁOTelLogFilterǁfilter__mutmut_1,
+        "xǁOTelLogFilterǁfilter__mutmut_2": xǁOTelLogFilterǁfilter__mutmut_2,
+        "xǁOTelLogFilterǁfilter__mutmut_3": xǁOTelLogFilterǁfilter__mutmut_3,
+        "xǁOTelLogFilterǁfilter__mutmut_4": xǁOTelLogFilterǁfilter__mutmut_4,
+        "xǁOTelLogFilterǁfilter__mutmut_5": xǁOTelLogFilterǁfilter__mutmut_5,
+        "xǁOTelLogFilterǁfilter__mutmut_6": xǁOTelLogFilterǁfilter__mutmut_6,
+        "xǁOTelLogFilterǁfilter__mutmut_7": xǁOTelLogFilterǁfilter__mutmut_7,
+        "xǁOTelLogFilterǁfilter__mutmut_8": xǁOTelLogFilterǁfilter__mutmut_8,
+        "xǁOTelLogFilterǁfilter__mutmut_9": xǁOTelLogFilterǁfilter__mutmut_9,
+        "xǁOTelLogFilterǁfilter__mutmut_10": xǁOTelLogFilterǁfilter__mutmut_10,
+        "xǁOTelLogFilterǁfilter__mutmut_11": xǁOTelLogFilterǁfilter__mutmut_11,
+        "xǁOTelLogFilterǁfilter__mutmut_12": xǁOTelLogFilterǁfilter__mutmut_12,
+        "xǁOTelLogFilterǁfilter__mutmut_13": xǁOTelLogFilterǁfilter__mutmut_13,
+        "xǁOTelLogFilterǁfilter__mutmut_14": xǁOTelLogFilterǁfilter__mutmut_14,
+        "xǁOTelLogFilterǁfilter__mutmut_15": xǁOTelLogFilterǁfilter__mutmut_15,
+        "xǁOTelLogFilterǁfilter__mutmut_16": xǁOTelLogFilterǁfilter__mutmut_16,
+        "xǁOTelLogFilterǁfilter__mutmut_17": xǁOTelLogFilterǁfilter__mutmut_17,
+        "xǁOTelLogFilterǁfilter__mutmut_18": xǁOTelLogFilterǁfilter__mutmut_18,
+        "xǁOTelLogFilterǁfilter__mutmut_19": xǁOTelLogFilterǁfilter__mutmut_19,
+        "xǁOTelLogFilterǁfilter__mutmut_20": xǁOTelLogFilterǁfilter__mutmut_20,
+        "xǁOTelLogFilterǁfilter__mutmut_21": xǁOTelLogFilterǁfilter__mutmut_21,
+        "xǁOTelLogFilterǁfilter__mutmut_22": xǁOTelLogFilterǁfilter__mutmut_22,
+        "xǁOTelLogFilterǁfilter__mutmut_23": xǁOTelLogFilterǁfilter__mutmut_23,
+        "xǁOTelLogFilterǁfilter__mutmut_24": xǁOTelLogFilterǁfilter__mutmut_24,
+        "xǁOTelLogFilterǁfilter__mutmut_25": xǁOTelLogFilterǁfilter__mutmut_25,
+        "xǁOTelLogFilterǁfilter__mutmut_26": xǁOTelLogFilterǁfilter__mutmut_26,
+        "xǁOTelLogFilterǁfilter__mutmut_27": xǁOTelLogFilterǁfilter__mutmut_27,
+        "xǁOTelLogFilterǁfilter__mutmut_28": xǁOTelLogFilterǁfilter__mutmut_28,
     }
-    xǁOTelLogFilterǁfilter__mutmut_orig.__name__ = 'xǁOTelLogFilterǁfilter'
+    xǁOTelLogFilterǁfilter__mutmut_orig.__name__ = "xǁOTelLogFilterǁfilter"
 
 
 def setup_tracing(
@@ -889,9 +902,15 @@ def setup_tracing(
     engine: Optional[object] = None,
     service_name: Optional[str] = None,
 ) -> None:
-    args = [app, engine, service_name]# type: ignore
-    kwargs = {}# type: ignore
-    return _mutmut_trampoline(x_setup_tracing__mutmut_orig, x_setup_tracing__mutmut_mutants, args, kwargs, None)
+    args = [app, engine, service_name]  # type: ignore
+    kwargs = {}  # type: ignore
+    return _mutmut_trampoline(
+        x_setup_tracing__mutmut_orig,
+        x_setup_tracing__mutmut_mutants,
+        args,
+        kwargs,
+        None,
+    )
 
 
 def x_setup_tracing__mutmut_orig(
@@ -901,8 +920,8 @@ def x_setup_tracing__mutmut_orig(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -912,18 +931,20 @@ def x_setup_tracing__mutmut_orig(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -961,10 +982,10 @@ def x_setup_tracing__mutmut_orig(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -972,7 +993,9 @@ def x_setup_tracing__mutmut_orig(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_1(
@@ -982,8 +1005,8 @@ def x_setup_tracing__mutmut_1(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -993,18 +1016,20 @@ def x_setup_tracing__mutmut_1(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = None
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1042,10 +1067,10 @@ def x_setup_tracing__mutmut_1(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1053,7 +1078,9 @@ def x_setup_tracing__mutmut_1(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_2(
@@ -1063,8 +1090,8 @@ def x_setup_tracing__mutmut_2(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1074,18 +1101,20 @@ def x_setup_tracing__mutmut_2(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name and os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1123,10 +1152,10 @@ def x_setup_tracing__mutmut_2(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1134,7 +1163,9 @@ def x_setup_tracing__mutmut_2(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_3(
@@ -1144,8 +1175,8 @@ def x_setup_tracing__mutmut_3(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1155,18 +1186,20 @@ def x_setup_tracing__mutmut_3(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv(None, "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1204,10 +1237,10 @@ def x_setup_tracing__mutmut_3(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1215,7 +1248,9 @@ def x_setup_tracing__mutmut_3(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_4(
@@ -1225,8 +1260,8 @@ def x_setup_tracing__mutmut_4(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1236,18 +1271,20 @@ def x_setup_tracing__mutmut_4(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", None)
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1285,10 +1322,10 @@ def x_setup_tracing__mutmut_4(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1296,7 +1333,9 @@ def x_setup_tracing__mutmut_4(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_5(
@@ -1306,8 +1345,8 @@ def x_setup_tracing__mutmut_5(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1317,18 +1356,20 @@ def x_setup_tracing__mutmut_5(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1366,10 +1407,10 @@ def x_setup_tracing__mutmut_5(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1377,7 +1418,9 @@ def x_setup_tracing__mutmut_5(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_6(
@@ -1387,8 +1430,8 @@ def x_setup_tracing__mutmut_6(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1398,18 +1441,22 @@ def x_setup_tracing__mutmut_6(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
-    resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", )
+    resolved_name = service_name or os.getenv(
+        "OTEL_SERVICE_NAME",
+    )
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1447,10 +1494,10 @@ def x_setup_tracing__mutmut_6(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1458,7 +1505,9 @@ def x_setup_tracing__mutmut_6(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_7(
@@ -1468,8 +1517,8 @@ def x_setup_tracing__mutmut_7(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1479,18 +1528,20 @@ def x_setup_tracing__mutmut_7(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("XXOTEL_SERVICE_NAMEXX", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1528,10 +1579,10 @@ def x_setup_tracing__mutmut_7(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1539,7 +1590,9 @@ def x_setup_tracing__mutmut_7(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_8(
@@ -1549,8 +1602,8 @@ def x_setup_tracing__mutmut_8(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1560,18 +1613,20 @@ def x_setup_tracing__mutmut_8(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("otel_service_name", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1609,10 +1664,10 @@ def x_setup_tracing__mutmut_8(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1620,7 +1675,9 @@ def x_setup_tracing__mutmut_8(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_9(
@@ -1630,8 +1687,8 @@ def x_setup_tracing__mutmut_9(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1641,18 +1698,20 @@ def x_setup_tracing__mutmut_9(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "XXfly_ai_coreXX")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1690,10 +1749,10 @@ def x_setup_tracing__mutmut_9(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1701,7 +1760,9 @@ def x_setup_tracing__mutmut_9(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_10(
@@ -1711,8 +1772,8 @@ def x_setup_tracing__mutmut_10(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1722,18 +1783,20 @@ def x_setup_tracing__mutmut_10(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "FLY_AI_CORE")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1771,10 +1834,10 @@ def x_setup_tracing__mutmut_10(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1782,7 +1845,9 @@ def x_setup_tracing__mutmut_10(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_11(
@@ -1792,8 +1857,8 @@ def x_setup_tracing__mutmut_11(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1803,18 +1868,20 @@ def x_setup_tracing__mutmut_11(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = None
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1852,10 +1919,10 @@ def x_setup_tracing__mutmut_11(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1863,7 +1930,9 @@ def x_setup_tracing__mutmut_11(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_12(
@@ -1873,8 +1942,8 @@ def x_setup_tracing__mutmut_12(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1884,18 +1953,20 @@ def x_setup_tracing__mutmut_12(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv(None, "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -1933,10 +2004,10 @@ def x_setup_tracing__mutmut_12(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -1944,7 +2015,9 @@ def x_setup_tracing__mutmut_12(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_13(
@@ -1954,8 +2027,8 @@ def x_setup_tracing__mutmut_13(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -1965,18 +2038,20 @@ def x_setup_tracing__mutmut_13(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", None)
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2014,10 +2089,10 @@ def x_setup_tracing__mutmut_13(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2025,7 +2100,9 @@ def x_setup_tracing__mutmut_13(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_14(
@@ -2035,8 +2112,8 @@ def x_setup_tracing__mutmut_14(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2046,18 +2123,20 @@ def x_setup_tracing__mutmut_14(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2095,10 +2174,10 @@ def x_setup_tracing__mutmut_14(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2106,7 +2185,9 @@ def x_setup_tracing__mutmut_14(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_15(
@@ -2116,8 +2197,8 @@ def x_setup_tracing__mutmut_15(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2127,18 +2208,22 @@ def x_setup_tracing__mutmut_15(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
-    environment = os.getenv("APP_ENV", )
+    environment = os.getenv(
+        "APP_ENV",
+    )
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2176,10 +2261,10 @@ def x_setup_tracing__mutmut_15(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2187,7 +2272,9 @@ def x_setup_tracing__mutmut_15(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_16(
@@ -2197,8 +2284,8 @@ def x_setup_tracing__mutmut_16(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2208,18 +2295,20 @@ def x_setup_tracing__mutmut_16(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("XXAPP_ENVXX", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2257,10 +2346,10 @@ def x_setup_tracing__mutmut_16(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2268,7 +2357,9 @@ def x_setup_tracing__mutmut_16(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_17(
@@ -2278,8 +2369,8 @@ def x_setup_tracing__mutmut_17(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2289,18 +2380,20 @@ def x_setup_tracing__mutmut_17(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("app_env", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2338,10 +2431,10 @@ def x_setup_tracing__mutmut_17(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2349,7 +2442,9 @@ def x_setup_tracing__mutmut_17(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_18(
@@ -2359,8 +2454,8 @@ def x_setup_tracing__mutmut_18(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2370,18 +2465,20 @@ def x_setup_tracing__mutmut_18(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "XXproductionXX")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2419,10 +2516,10 @@ def x_setup_tracing__mutmut_18(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2430,7 +2527,9 @@ def x_setup_tracing__mutmut_18(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_19(
@@ -2440,8 +2539,8 @@ def x_setup_tracing__mutmut_19(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2451,18 +2550,20 @@ def x_setup_tracing__mutmut_19(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "PRODUCTION")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2500,10 +2601,10 @@ def x_setup_tracing__mutmut_19(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2511,7 +2612,9 @@ def x_setup_tracing__mutmut_19(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_20(
@@ -2521,8 +2624,8 @@ def x_setup_tracing__mutmut_20(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2532,7 +2635,7 @@ def x_setup_tracing__mutmut_20(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
@@ -2577,10 +2680,10 @@ def x_setup_tracing__mutmut_20(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2588,7 +2691,9 @@ def x_setup_tracing__mutmut_20(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_21(
@@ -2598,8 +2703,8 @@ def x_setup_tracing__mutmut_21(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2609,7 +2714,7 @@ def x_setup_tracing__mutmut_21(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
@@ -2654,10 +2759,10 @@ def x_setup_tracing__mutmut_21(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2665,7 +2770,9 @@ def x_setup_tracing__mutmut_21(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_22(
@@ -2675,8 +2782,8 @@ def x_setup_tracing__mutmut_22(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2686,18 +2793,20 @@ def x_setup_tracing__mutmut_22(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "XXdeployment.environmentXX": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "XXdeployment.environmentXX": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2735,10 +2844,10 @@ def x_setup_tracing__mutmut_22(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2746,7 +2855,9 @@ def x_setup_tracing__mutmut_22(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_23(
@@ -2756,8 +2867,8 @@ def x_setup_tracing__mutmut_23(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2767,18 +2878,20 @@ def x_setup_tracing__mutmut_23(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "DEPLOYMENT.ENVIRONMENT": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "DEPLOYMENT.ENVIRONMENT": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2816,10 +2929,10 @@ def x_setup_tracing__mutmut_23(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2827,7 +2940,9 @@ def x_setup_tracing__mutmut_23(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_24(
@@ -2837,8 +2952,8 @@ def x_setup_tracing__mutmut_24(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2848,18 +2963,20 @@ def x_setup_tracing__mutmut_24(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "XXservice.namespaceXX": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "XXservice.namespaceXX": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2897,10 +3014,10 @@ def x_setup_tracing__mutmut_24(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2908,7 +3025,9 @@ def x_setup_tracing__mutmut_24(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_25(
@@ -2918,8 +3037,8 @@ def x_setup_tracing__mutmut_25(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -2929,18 +3048,20 @@ def x_setup_tracing__mutmut_25(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "SERVICE.NAMESPACE": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "SERVICE.NAMESPACE": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -2978,10 +3099,10 @@ def x_setup_tracing__mutmut_25(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -2989,7 +3110,9 @@ def x_setup_tracing__mutmut_25(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_26(
@@ -2999,8 +3122,8 @@ def x_setup_tracing__mutmut_26(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3010,18 +3133,20 @@ def x_setup_tracing__mutmut_26(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "XXfly_aiXX",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "XXfly_aiXX",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3059,10 +3184,10 @@ def x_setup_tracing__mutmut_26(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3070,7 +3195,9 @@ def x_setup_tracing__mutmut_26(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_27(
@@ -3080,8 +3207,8 @@ def x_setup_tracing__mutmut_27(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3091,18 +3218,20 @@ def x_setup_tracing__mutmut_27(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "FLY_AI",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "FLY_AI",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3140,10 +3269,10 @@ def x_setup_tracing__mutmut_27(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3151,7 +3280,9 @@ def x_setup_tracing__mutmut_27(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_28(
@@ -3161,8 +3292,8 @@ def x_setup_tracing__mutmut_28(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3172,18 +3303,20 @@ def x_setup_tracing__mutmut_28(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = None
@@ -3221,10 +3354,10 @@ def x_setup_tracing__mutmut_28(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3232,7 +3365,9 @@ def x_setup_tracing__mutmut_28(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_29(
@@ -3242,8 +3377,8 @@ def x_setup_tracing__mutmut_29(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3253,18 +3388,20 @@ def x_setup_tracing__mutmut_29(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=None)
@@ -3302,10 +3439,10 @@ def x_setup_tracing__mutmut_29(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3313,7 +3450,9 @@ def x_setup_tracing__mutmut_29(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_30(
@@ -3323,8 +3462,8 @@ def x_setup_tracing__mutmut_30(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3334,18 +3473,20 @@ def x_setup_tracing__mutmut_30(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3383,10 +3524,10 @@ def x_setup_tracing__mutmut_30(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3394,7 +3535,9 @@ def x_setup_tracing__mutmut_30(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_31(
@@ -3404,8 +3547,8 @@ def x_setup_tracing__mutmut_31(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3415,18 +3558,20 @@ def x_setup_tracing__mutmut_31(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3464,10 +3609,10 @@ def x_setup_tracing__mutmut_31(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3475,7 +3620,9 @@ def x_setup_tracing__mutmut_31(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_32(
@@ -3485,8 +3632,8 @@ def x_setup_tracing__mutmut_32(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3496,18 +3643,20 @@ def x_setup_tracing__mutmut_32(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3545,10 +3694,10 @@ def x_setup_tracing__mutmut_32(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3556,7 +3705,9 @@ def x_setup_tracing__mutmut_32(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_33(
@@ -3566,8 +3717,8 @@ def x_setup_tracing__mutmut_33(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3577,18 +3728,20 @@ def x_setup_tracing__mutmut_33(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3626,10 +3779,10 @@ def x_setup_tracing__mutmut_33(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3637,7 +3790,9 @@ def x_setup_tracing__mutmut_33(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_34(
@@ -3647,8 +3802,8 @@ def x_setup_tracing__mutmut_34(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3658,24 +3813,28 @@ def x_setup_tracing__mutmut_34(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
 
     # OTLP / gRPC Exporter: Sends telemetry to the collector (Tempo).
-    otlp_endpoint = os.getenv("OTLP_ENDPOINT", )
+    otlp_endpoint = os.getenv(
+        "OTLP_ENDPOINT",
+    )
 
     try:
         exporter = OTLPSpanExporter(
@@ -3707,10 +3866,10 @@ def x_setup_tracing__mutmut_34(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3718,7 +3877,9 @@ def x_setup_tracing__mutmut_34(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_35(
@@ -3728,8 +3889,8 @@ def x_setup_tracing__mutmut_35(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3739,18 +3900,20 @@ def x_setup_tracing__mutmut_35(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3788,10 +3951,10 @@ def x_setup_tracing__mutmut_35(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3799,7 +3962,9 @@ def x_setup_tracing__mutmut_35(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_36(
@@ -3809,8 +3974,8 @@ def x_setup_tracing__mutmut_36(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3820,18 +3985,20 @@ def x_setup_tracing__mutmut_36(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3869,10 +4036,10 @@ def x_setup_tracing__mutmut_36(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3880,7 +4047,9 @@ def x_setup_tracing__mutmut_36(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_37(
@@ -3890,8 +4059,8 @@ def x_setup_tracing__mutmut_37(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3901,18 +4070,20 @@ def x_setup_tracing__mutmut_37(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -3950,10 +4121,10 @@ def x_setup_tracing__mutmut_37(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -3961,7 +4132,9 @@ def x_setup_tracing__mutmut_37(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_38(
@@ -3971,8 +4144,8 @@ def x_setup_tracing__mutmut_38(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -3982,18 +4155,20 @@ def x_setup_tracing__mutmut_38(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4031,10 +4206,10 @@ def x_setup_tracing__mutmut_38(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4042,7 +4217,9 @@ def x_setup_tracing__mutmut_38(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_39(
@@ -4052,8 +4229,8 @@ def x_setup_tracing__mutmut_39(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4063,18 +4240,20 @@ def x_setup_tracing__mutmut_39(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4109,10 +4288,10 @@ def x_setup_tracing__mutmut_39(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4120,7 +4299,9 @@ def x_setup_tracing__mutmut_39(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_40(
@@ -4130,8 +4311,8 @@ def x_setup_tracing__mutmut_40(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4141,18 +4322,20 @@ def x_setup_tracing__mutmut_40(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4190,10 +4373,10 @@ def x_setup_tracing__mutmut_40(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4201,7 +4384,9 @@ def x_setup_tracing__mutmut_40(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_41(
@@ -4211,8 +4396,8 @@ def x_setup_tracing__mutmut_41(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4222,18 +4407,20 @@ def x_setup_tracing__mutmut_41(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4271,10 +4458,10 @@ def x_setup_tracing__mutmut_41(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4282,7 +4469,9 @@ def x_setup_tracing__mutmut_41(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_42(
@@ -4292,8 +4481,8 @@ def x_setup_tracing__mutmut_42(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4303,18 +4492,20 @@ def x_setup_tracing__mutmut_42(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4351,10 +4542,10 @@ def x_setup_tracing__mutmut_42(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4362,7 +4553,9 @@ def x_setup_tracing__mutmut_42(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_43(
@@ -4372,8 +4565,8 @@ def x_setup_tracing__mutmut_43(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4383,18 +4576,20 @@ def x_setup_tracing__mutmut_43(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4405,7 +4600,7 @@ def x_setup_tracing__mutmut_43(
     try:
         exporter = OTLPSpanExporter(
             endpoint=otlp_endpoint,
-            )
+        )
         # Using a Batch processor to minimize the performance impact on hot paths.
         processor = BatchSpanProcessor(exporter)
         provider.add_span_processor(processor)
@@ -4431,10 +4626,10 @@ def x_setup_tracing__mutmut_43(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4442,7 +4637,9 @@ def x_setup_tracing__mutmut_43(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_44(
@@ -4452,8 +4649,8 @@ def x_setup_tracing__mutmut_44(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4463,18 +4660,20 @@ def x_setup_tracing__mutmut_44(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4512,10 +4711,10 @@ def x_setup_tracing__mutmut_44(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4523,7 +4722,9 @@ def x_setup_tracing__mutmut_44(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_45(
@@ -4533,8 +4734,8 @@ def x_setup_tracing__mutmut_45(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4544,18 +4745,20 @@ def x_setup_tracing__mutmut_45(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4593,10 +4796,10 @@ def x_setup_tracing__mutmut_45(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4604,7 +4807,9 @@ def x_setup_tracing__mutmut_45(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_46(
@@ -4614,8 +4819,8 @@ def x_setup_tracing__mutmut_46(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4625,18 +4830,20 @@ def x_setup_tracing__mutmut_46(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4674,10 +4881,10 @@ def x_setup_tracing__mutmut_46(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4685,7 +4892,9 @@ def x_setup_tracing__mutmut_46(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_47(
@@ -4695,8 +4904,8 @@ def x_setup_tracing__mutmut_47(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4706,18 +4915,20 @@ def x_setup_tracing__mutmut_47(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4755,10 +4966,10 @@ def x_setup_tracing__mutmut_47(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4766,7 +4977,9 @@ def x_setup_tracing__mutmut_47(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_48(
@@ -4776,8 +4989,8 @@ def x_setup_tracing__mutmut_48(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4787,18 +5000,20 @@ def x_setup_tracing__mutmut_48(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4836,10 +5051,10 @@ def x_setup_tracing__mutmut_48(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4847,7 +5062,9 @@ def x_setup_tracing__mutmut_48(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_49(
@@ -4857,8 +5074,8 @@ def x_setup_tracing__mutmut_49(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4868,18 +5085,20 @@ def x_setup_tracing__mutmut_49(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4917,10 +5136,10 @@ def x_setup_tracing__mutmut_49(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -4928,7 +5147,9 @@ def x_setup_tracing__mutmut_49(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_50(
@@ -4938,8 +5159,8 @@ def x_setup_tracing__mutmut_50(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -4949,18 +5170,20 @@ def x_setup_tracing__mutmut_50(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -4998,10 +5221,10 @@ def x_setup_tracing__mutmut_50(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5009,7 +5232,9 @@ def x_setup_tracing__mutmut_50(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_51(
@@ -5019,8 +5244,8 @@ def x_setup_tracing__mutmut_51(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5030,18 +5255,20 @@ def x_setup_tracing__mutmut_51(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5079,10 +5306,10 @@ def x_setup_tracing__mutmut_51(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5090,7 +5317,9 @@ def x_setup_tracing__mutmut_51(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_52(
@@ -5100,8 +5329,8 @@ def x_setup_tracing__mutmut_52(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5111,18 +5340,20 @@ def x_setup_tracing__mutmut_52(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5159,10 +5390,10 @@ def x_setup_tracing__mutmut_52(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5170,7 +5401,9 @@ def x_setup_tracing__mutmut_52(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_53(
@@ -5180,8 +5413,8 @@ def x_setup_tracing__mutmut_53(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5191,18 +5424,20 @@ def x_setup_tracing__mutmut_53(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5239,10 +5474,10 @@ def x_setup_tracing__mutmut_53(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5250,7 +5485,9 @@ def x_setup_tracing__mutmut_53(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_54(
@@ -5260,8 +5497,8 @@ def x_setup_tracing__mutmut_54(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5271,18 +5508,20 @@ def x_setup_tracing__mutmut_54(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5319,10 +5558,10 @@ def x_setup_tracing__mutmut_54(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5330,7 +5569,9 @@ def x_setup_tracing__mutmut_54(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_55(
@@ -5340,8 +5581,8 @@ def x_setup_tracing__mutmut_55(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5351,18 +5592,20 @@ def x_setup_tracing__mutmut_55(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5382,7 +5625,7 @@ def x_setup_tracing__mutmut_55(
             "OTel tracing configured: service=%s endpoint=%s env=%s",
             resolved_name,
             otlp_endpoint,
-            )
+        )
     except Exception as exc:
         # We fail gracefully here to prevent an observability outage from
         # taking down the actual business processing.
@@ -5399,10 +5642,10 @@ def x_setup_tracing__mutmut_55(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5410,7 +5653,9 @@ def x_setup_tracing__mutmut_55(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_56(
@@ -5420,8 +5665,8 @@ def x_setup_tracing__mutmut_56(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5431,18 +5676,20 @@ def x_setup_tracing__mutmut_56(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5480,10 +5727,10 @@ def x_setup_tracing__mutmut_56(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5491,7 +5738,9 @@ def x_setup_tracing__mutmut_56(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_57(
@@ -5501,8 +5750,8 @@ def x_setup_tracing__mutmut_57(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5512,18 +5761,20 @@ def x_setup_tracing__mutmut_57(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5561,10 +5812,10 @@ def x_setup_tracing__mutmut_57(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5572,7 +5823,9 @@ def x_setup_tracing__mutmut_57(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_58(
@@ -5582,8 +5835,8 @@ def x_setup_tracing__mutmut_58(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5593,18 +5846,20 @@ def x_setup_tracing__mutmut_58(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5642,10 +5897,10 @@ def x_setup_tracing__mutmut_58(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5653,7 +5908,9 @@ def x_setup_tracing__mutmut_58(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_59(
@@ -5663,8 +5920,8 @@ def x_setup_tracing__mutmut_59(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5674,18 +5931,20 @@ def x_setup_tracing__mutmut_59(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5723,10 +5982,10 @@ def x_setup_tracing__mutmut_59(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5734,7 +5993,9 @@ def x_setup_tracing__mutmut_59(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_60(
@@ -5744,8 +6005,8 @@ def x_setup_tracing__mutmut_60(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5755,18 +6016,20 @@ def x_setup_tracing__mutmut_60(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5788,7 +6051,7 @@ def x_setup_tracing__mutmut_60(
             otlp_endpoint,
             environment,
         )
-    except Exception as exc:
+    except Exception:
         # We fail gracefully here to prevent an observability outage from
         # taking down the actual business processing.
         logger.warning(
@@ -5804,10 +6067,10 @@ def x_setup_tracing__mutmut_60(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5815,7 +6078,9 @@ def x_setup_tracing__mutmut_60(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_61(
@@ -5825,8 +6090,8 @@ def x_setup_tracing__mutmut_61(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5836,18 +6101,20 @@ def x_setup_tracing__mutmut_61(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5884,10 +6151,10 @@ def x_setup_tracing__mutmut_61(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5895,7 +6162,9 @@ def x_setup_tracing__mutmut_61(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_62(
@@ -5905,8 +6174,8 @@ def x_setup_tracing__mutmut_62(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5916,18 +6185,20 @@ def x_setup_tracing__mutmut_62(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -5949,12 +6220,12 @@ def x_setup_tracing__mutmut_62(
             otlp_endpoint,
             environment,
         )
-    except Exception as exc:
+    except Exception:
         # We fail gracefully here to prevent an observability outage from
         # taking down the actual business processing.
         logger.warning(
             "OTel exporter failed to initialize (traces will be dropped): %s",
-            )
+        )
 
     # Activate the provider globally so libraries can retrieve tracers.
     trace.set_tracer_provider(provider)
@@ -5964,10 +6235,10 @@ def x_setup_tracing__mutmut_62(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -5975,7 +6246,9 @@ def x_setup_tracing__mutmut_62(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_63(
@@ -5985,8 +6258,8 @@ def x_setup_tracing__mutmut_63(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -5996,18 +6269,20 @@ def x_setup_tracing__mutmut_63(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6045,10 +6320,10 @@ def x_setup_tracing__mutmut_63(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6056,7 +6331,9 @@ def x_setup_tracing__mutmut_63(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_64(
@@ -6066,8 +6343,8 @@ def x_setup_tracing__mutmut_64(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6077,18 +6354,20 @@ def x_setup_tracing__mutmut_64(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6126,10 +6405,10 @@ def x_setup_tracing__mutmut_64(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6137,7 +6416,9 @@ def x_setup_tracing__mutmut_64(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_65(
@@ -6147,8 +6428,8 @@ def x_setup_tracing__mutmut_65(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6158,18 +6439,20 @@ def x_setup_tracing__mutmut_65(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6207,10 +6490,10 @@ def x_setup_tracing__mutmut_65(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6218,7 +6501,9 @@ def x_setup_tracing__mutmut_65(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_66(
@@ -6228,8 +6513,8 @@ def x_setup_tracing__mutmut_66(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6239,18 +6524,20 @@ def x_setup_tracing__mutmut_66(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6288,10 +6575,10 @@ def x_setup_tracing__mutmut_66(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6299,7 +6586,9 @@ def x_setup_tracing__mutmut_66(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_67(
@@ -6309,8 +6598,8 @@ def x_setup_tracing__mutmut_67(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6320,18 +6609,20 @@ def x_setup_tracing__mutmut_67(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6369,10 +6660,10 @@ def x_setup_tracing__mutmut_67(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6380,7 +6671,9 @@ def x_setup_tracing__mutmut_67(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_68(
@@ -6390,8 +6683,8 @@ def x_setup_tracing__mutmut_68(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6401,18 +6694,20 @@ def x_setup_tracing__mutmut_68(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6450,10 +6745,10 @@ def x_setup_tracing__mutmut_68(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = None
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6461,7 +6756,9 @@ def x_setup_tracing__mutmut_68(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_69(
@@ -6471,8 +6768,8 @@ def x_setup_tracing__mutmut_69(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6482,18 +6779,20 @@ def x_setup_tracing__mutmut_69(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6531,10 +6830,10 @@ def x_setup_tracing__mutmut_69(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv(None, "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6542,7 +6841,9 @@ def x_setup_tracing__mutmut_69(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_70(
@@ -6552,8 +6853,8 @@ def x_setup_tracing__mutmut_70(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6563,18 +6864,20 @@ def x_setup_tracing__mutmut_70(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6612,10 +6915,10 @@ def x_setup_tracing__mutmut_70(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", None)
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6623,7 +6926,9 @@ def x_setup_tracing__mutmut_70(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_71(
@@ -6633,8 +6938,8 @@ def x_setup_tracing__mutmut_71(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6644,18 +6949,20 @@ def x_setup_tracing__mutmut_71(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6693,10 +7000,10 @@ def x_setup_tracing__mutmut_71(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6704,7 +7011,9 @@ def x_setup_tracing__mutmut_71(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_72(
@@ -6714,8 +7023,8 @@ def x_setup_tracing__mutmut_72(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6725,18 +7034,20 @@ def x_setup_tracing__mutmut_72(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6773,11 +7084,13 @@ def x_setup_tracing__mutmut_72(
     if app is not None:
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
-        excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", )
-        
+        excluded_urls_str = os.getenv(
+            "OTEL_EXCLUDED_URLS",
+        )
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6785,7 +7098,9 @@ def x_setup_tracing__mutmut_72(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_73(
@@ -6795,8 +7110,8 @@ def x_setup_tracing__mutmut_73(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6806,18 +7121,20 @@ def x_setup_tracing__mutmut_73(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6855,10 +7172,10 @@ def x_setup_tracing__mutmut_73(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("XXOTEL_EXCLUDED_URLSXX", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6866,7 +7183,9 @@ def x_setup_tracing__mutmut_73(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_74(
@@ -6876,8 +7195,8 @@ def x_setup_tracing__mutmut_74(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6887,18 +7206,20 @@ def x_setup_tracing__mutmut_74(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -6936,10 +7257,10 @@ def x_setup_tracing__mutmut_74(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("otel_excluded_urls", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -6947,7 +7268,9 @@ def x_setup_tracing__mutmut_74(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_75(
@@ -6957,8 +7280,8 @@ def x_setup_tracing__mutmut_75(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -6968,18 +7291,20 @@ def x_setup_tracing__mutmut_75(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7017,10 +7342,10 @@ def x_setup_tracing__mutmut_75(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "XXmetrics,healthXX")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7028,7 +7353,9 @@ def x_setup_tracing__mutmut_75(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_76(
@@ -7038,8 +7365,8 @@ def x_setup_tracing__mutmut_76(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7049,18 +7376,20 @@ def x_setup_tracing__mutmut_76(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7098,10 +7427,10 @@ def x_setup_tracing__mutmut_76(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "METRICS,HEALTH")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7109,7 +7438,9 @@ def x_setup_tracing__mutmut_76(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_77(
@@ -7119,8 +7450,8 @@ def x_setup_tracing__mutmut_77(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7130,18 +7461,20 @@ def x_setup_tracing__mutmut_77(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7179,10 +7512,10 @@ def x_setup_tracing__mutmut_77(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             None,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7190,7 +7523,9 @@ def x_setup_tracing__mutmut_77(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_78(
@@ -7200,8 +7535,8 @@ def x_setup_tracing__mutmut_78(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7211,18 +7546,20 @@ def x_setup_tracing__mutmut_78(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7260,10 +7597,10 @@ def x_setup_tracing__mutmut_78(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=None
+            excluded_urls=None,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7271,7 +7608,9 @@ def x_setup_tracing__mutmut_78(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_79(
@@ -7281,8 +7620,8 @@ def x_setup_tracing__mutmut_79(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7292,18 +7631,20 @@ def x_setup_tracing__mutmut_79(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7341,17 +7682,17 @@ def x_setup_tracing__mutmut_79(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
-        FastAPIInstrumentor.instrument_app(
-            excluded_urls=excluded_urls_str
-        )
+
+        FastAPIInstrumentor.instrument_app(excluded_urls=excluded_urls_str)
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
     # Database Auto-Instrumentation.
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_80(
@@ -7361,8 +7702,8 @@ def x_setup_tracing__mutmut_80(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7372,18 +7713,20 @@ def x_setup_tracing__mutmut_80(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7421,17 +7764,19 @@ def x_setup_tracing__mutmut_80(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            )
+        )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
     # Database Auto-Instrumentation.
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_81(
@@ -7441,8 +7786,8 @@ def x_setup_tracing__mutmut_81(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7452,18 +7797,20 @@ def x_setup_tracing__mutmut_81(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7501,10 +7848,10 @@ def x_setup_tracing__mutmut_81(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(None)
 
@@ -7512,7 +7859,9 @@ def x_setup_tracing__mutmut_81(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_82(
@@ -7522,8 +7871,8 @@ def x_setup_tracing__mutmut_82(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7533,18 +7882,20 @@ def x_setup_tracing__mutmut_82(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7582,10 +7933,10 @@ def x_setup_tracing__mutmut_82(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7593,7 +7944,9 @@ def x_setup_tracing__mutmut_82(
     if engine is None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_83(
@@ -7603,8 +7956,8 @@ def x_setup_tracing__mutmut_83(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7614,18 +7967,20 @@ def x_setup_tracing__mutmut_83(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7663,10 +8018,10 @@ def x_setup_tracing__mutmut_83(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7674,7 +8029,9 @@ def x_setup_tracing__mutmut_83(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=None)  # type: ignore[arg-type]
-        logger.info("OTel: SQLAlchemy auto-instrumented (database observability active)")
+        logger.info(
+            "OTel: SQLAlchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_84(
@@ -7684,8 +8041,8 @@ def x_setup_tracing__mutmut_84(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7695,18 +8052,20 @@ def x_setup_tracing__mutmut_84(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7744,10 +8103,10 @@ def x_setup_tracing__mutmut_84(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7765,8 +8124,8 @@ def x_setup_tracing__mutmut_85(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7776,18 +8135,20 @@ def x_setup_tracing__mutmut_85(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7825,10 +8186,10 @@ def x_setup_tracing__mutmut_85(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7836,7 +8197,9 @@ def x_setup_tracing__mutmut_85(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("XXOTel: SQLAlchemy auto-instrumented (database observability active)XX")
+        logger.info(
+            "XXOTel: SQLAlchemy auto-instrumented (database observability active)XX"
+        )
 
 
 def x_setup_tracing__mutmut_86(
@@ -7846,8 +8209,8 @@ def x_setup_tracing__mutmut_86(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7857,18 +8220,20 @@ def x_setup_tracing__mutmut_86(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7906,10 +8271,10 @@ def x_setup_tracing__mutmut_86(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7917,7 +8282,9 @@ def x_setup_tracing__mutmut_86(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("otel: sqlalchemy auto-instrumented (database observability active)")
+        logger.info(
+            "otel: sqlalchemy auto-instrumented (database observability active)"
+        )
 
 
 def x_setup_tracing__mutmut_87(
@@ -7927,8 +8294,8 @@ def x_setup_tracing__mutmut_87(
 ) -> None:
     """Bootstraps the global OpenTelemetry pipeline and auto-instrumentation.
 
-    Centralizing tracing setup in a single entry point ensures consistent 
-    resource attributes and exporter configurations across all system roles 
+    Centralizing tracing setup in a single entry point ensures consistent
+    resource attributes and exporter configurations across all system roles
     (API, Scraper, Worker).
 
     Args:
@@ -7938,18 +8305,20 @@ def x_setup_tracing__mutmut_87(
             Defaults to OTEL_SERVICE_NAME env var or 'fly_ai_core'.
 
     Note:
-        This function is idempotent and should be called once during the 
+        This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
     resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
     environment = os.getenv("APP_ENV", "production")
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
-    resource = Resource.create({
-        SERVICE_NAME: resolved_name,
-        "deployment.environment": environment,
-        "service.namespace": "fly_ai",
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: resolved_name,
+            "deployment.environment": environment,
+            "service.namespace": "fly_ai",
+        }
+    )
 
     # The TracerProvider is the source of all tracers.
     provider = TracerProvider(resource=resource)
@@ -7987,10 +8356,10 @@ def x_setup_tracing__mutmut_87(
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
         excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
-        
+
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]
-            excluded_urls=excluded_urls_str
+            excluded_urls=excluded_urls_str,
         )
         logger.info(f"OTel: FastAPI auto-instrumented (ignoring: {excluded_urls_str})")
 
@@ -7998,95 +8367,98 @@ def x_setup_tracing__mutmut_87(
     if engine is not None:
         # Captures every SQL execution as a span, including raw queries.
         SQLAlchemyInstrumentor().instrument(engine=engine)  # type: ignore[arg-type]
-        logger.info("OTEL: SQLALCHEMY AUTO-INSTRUMENTED (DATABASE OBSERVABILITY ACTIVE)")
+        logger.info(
+            "OTEL: SQLALCHEMY AUTO-INSTRUMENTED (DATABASE OBSERVABILITY ACTIVE)"
+        )
 
-x_setup_tracing__mutmut_mutants : ClassVar[MutantDict] = { # type: ignore
-'x_setup_tracing__mutmut_1': x_setup_tracing__mutmut_1, 
-    'x_setup_tracing__mutmut_2': x_setup_tracing__mutmut_2, 
-    'x_setup_tracing__mutmut_3': x_setup_tracing__mutmut_3, 
-    'x_setup_tracing__mutmut_4': x_setup_tracing__mutmut_4, 
-    'x_setup_tracing__mutmut_5': x_setup_tracing__mutmut_5, 
-    'x_setup_tracing__mutmut_6': x_setup_tracing__mutmut_6, 
-    'x_setup_tracing__mutmut_7': x_setup_tracing__mutmut_7, 
-    'x_setup_tracing__mutmut_8': x_setup_tracing__mutmut_8, 
-    'x_setup_tracing__mutmut_9': x_setup_tracing__mutmut_9, 
-    'x_setup_tracing__mutmut_10': x_setup_tracing__mutmut_10, 
-    'x_setup_tracing__mutmut_11': x_setup_tracing__mutmut_11, 
-    'x_setup_tracing__mutmut_12': x_setup_tracing__mutmut_12, 
-    'x_setup_tracing__mutmut_13': x_setup_tracing__mutmut_13, 
-    'x_setup_tracing__mutmut_14': x_setup_tracing__mutmut_14, 
-    'x_setup_tracing__mutmut_15': x_setup_tracing__mutmut_15, 
-    'x_setup_tracing__mutmut_16': x_setup_tracing__mutmut_16, 
-    'x_setup_tracing__mutmut_17': x_setup_tracing__mutmut_17, 
-    'x_setup_tracing__mutmut_18': x_setup_tracing__mutmut_18, 
-    'x_setup_tracing__mutmut_19': x_setup_tracing__mutmut_19, 
-    'x_setup_tracing__mutmut_20': x_setup_tracing__mutmut_20, 
-    'x_setup_tracing__mutmut_21': x_setup_tracing__mutmut_21, 
-    'x_setup_tracing__mutmut_22': x_setup_tracing__mutmut_22, 
-    'x_setup_tracing__mutmut_23': x_setup_tracing__mutmut_23, 
-    'x_setup_tracing__mutmut_24': x_setup_tracing__mutmut_24, 
-    'x_setup_tracing__mutmut_25': x_setup_tracing__mutmut_25, 
-    'x_setup_tracing__mutmut_26': x_setup_tracing__mutmut_26, 
-    'x_setup_tracing__mutmut_27': x_setup_tracing__mutmut_27, 
-    'x_setup_tracing__mutmut_28': x_setup_tracing__mutmut_28, 
-    'x_setup_tracing__mutmut_29': x_setup_tracing__mutmut_29, 
-    'x_setup_tracing__mutmut_30': x_setup_tracing__mutmut_30, 
-    'x_setup_tracing__mutmut_31': x_setup_tracing__mutmut_31, 
-    'x_setup_tracing__mutmut_32': x_setup_tracing__mutmut_32, 
-    'x_setup_tracing__mutmut_33': x_setup_tracing__mutmut_33, 
-    'x_setup_tracing__mutmut_34': x_setup_tracing__mutmut_34, 
-    'x_setup_tracing__mutmut_35': x_setup_tracing__mutmut_35, 
-    'x_setup_tracing__mutmut_36': x_setup_tracing__mutmut_36, 
-    'x_setup_tracing__mutmut_37': x_setup_tracing__mutmut_37, 
-    'x_setup_tracing__mutmut_38': x_setup_tracing__mutmut_38, 
-    'x_setup_tracing__mutmut_39': x_setup_tracing__mutmut_39, 
-    'x_setup_tracing__mutmut_40': x_setup_tracing__mutmut_40, 
-    'x_setup_tracing__mutmut_41': x_setup_tracing__mutmut_41, 
-    'x_setup_tracing__mutmut_42': x_setup_tracing__mutmut_42, 
-    'x_setup_tracing__mutmut_43': x_setup_tracing__mutmut_43, 
-    'x_setup_tracing__mutmut_44': x_setup_tracing__mutmut_44, 
-    'x_setup_tracing__mutmut_45': x_setup_tracing__mutmut_45, 
-    'x_setup_tracing__mutmut_46': x_setup_tracing__mutmut_46, 
-    'x_setup_tracing__mutmut_47': x_setup_tracing__mutmut_47, 
-    'x_setup_tracing__mutmut_48': x_setup_tracing__mutmut_48, 
-    'x_setup_tracing__mutmut_49': x_setup_tracing__mutmut_49, 
-    'x_setup_tracing__mutmut_50': x_setup_tracing__mutmut_50, 
-    'x_setup_tracing__mutmut_51': x_setup_tracing__mutmut_51, 
-    'x_setup_tracing__mutmut_52': x_setup_tracing__mutmut_52, 
-    'x_setup_tracing__mutmut_53': x_setup_tracing__mutmut_53, 
-    'x_setup_tracing__mutmut_54': x_setup_tracing__mutmut_54, 
-    'x_setup_tracing__mutmut_55': x_setup_tracing__mutmut_55, 
-    'x_setup_tracing__mutmut_56': x_setup_tracing__mutmut_56, 
-    'x_setup_tracing__mutmut_57': x_setup_tracing__mutmut_57, 
-    'x_setup_tracing__mutmut_58': x_setup_tracing__mutmut_58, 
-    'x_setup_tracing__mutmut_59': x_setup_tracing__mutmut_59, 
-    'x_setup_tracing__mutmut_60': x_setup_tracing__mutmut_60, 
-    'x_setup_tracing__mutmut_61': x_setup_tracing__mutmut_61, 
-    'x_setup_tracing__mutmut_62': x_setup_tracing__mutmut_62, 
-    'x_setup_tracing__mutmut_63': x_setup_tracing__mutmut_63, 
-    'x_setup_tracing__mutmut_64': x_setup_tracing__mutmut_64, 
-    'x_setup_tracing__mutmut_65': x_setup_tracing__mutmut_65, 
-    'x_setup_tracing__mutmut_66': x_setup_tracing__mutmut_66, 
-    'x_setup_tracing__mutmut_67': x_setup_tracing__mutmut_67, 
-    'x_setup_tracing__mutmut_68': x_setup_tracing__mutmut_68, 
-    'x_setup_tracing__mutmut_69': x_setup_tracing__mutmut_69, 
-    'x_setup_tracing__mutmut_70': x_setup_tracing__mutmut_70, 
-    'x_setup_tracing__mutmut_71': x_setup_tracing__mutmut_71, 
-    'x_setup_tracing__mutmut_72': x_setup_tracing__mutmut_72, 
-    'x_setup_tracing__mutmut_73': x_setup_tracing__mutmut_73, 
-    'x_setup_tracing__mutmut_74': x_setup_tracing__mutmut_74, 
-    'x_setup_tracing__mutmut_75': x_setup_tracing__mutmut_75, 
-    'x_setup_tracing__mutmut_76': x_setup_tracing__mutmut_76, 
-    'x_setup_tracing__mutmut_77': x_setup_tracing__mutmut_77, 
-    'x_setup_tracing__mutmut_78': x_setup_tracing__mutmut_78, 
-    'x_setup_tracing__mutmut_79': x_setup_tracing__mutmut_79, 
-    'x_setup_tracing__mutmut_80': x_setup_tracing__mutmut_80, 
-    'x_setup_tracing__mutmut_81': x_setup_tracing__mutmut_81, 
-    'x_setup_tracing__mutmut_82': x_setup_tracing__mutmut_82, 
-    'x_setup_tracing__mutmut_83': x_setup_tracing__mutmut_83, 
-    'x_setup_tracing__mutmut_84': x_setup_tracing__mutmut_84, 
-    'x_setup_tracing__mutmut_85': x_setup_tracing__mutmut_85, 
-    'x_setup_tracing__mutmut_86': x_setup_tracing__mutmut_86, 
-    'x_setup_tracing__mutmut_87': x_setup_tracing__mutmut_87
+
+x_setup_tracing__mutmut_mutants: ClassVar[MutantDict] = {  # type: ignore
+    "x_setup_tracing__mutmut_1": x_setup_tracing__mutmut_1,
+    "x_setup_tracing__mutmut_2": x_setup_tracing__mutmut_2,
+    "x_setup_tracing__mutmut_3": x_setup_tracing__mutmut_3,
+    "x_setup_tracing__mutmut_4": x_setup_tracing__mutmut_4,
+    "x_setup_tracing__mutmut_5": x_setup_tracing__mutmut_5,
+    "x_setup_tracing__mutmut_6": x_setup_tracing__mutmut_6,
+    "x_setup_tracing__mutmut_7": x_setup_tracing__mutmut_7,
+    "x_setup_tracing__mutmut_8": x_setup_tracing__mutmut_8,
+    "x_setup_tracing__mutmut_9": x_setup_tracing__mutmut_9,
+    "x_setup_tracing__mutmut_10": x_setup_tracing__mutmut_10,
+    "x_setup_tracing__mutmut_11": x_setup_tracing__mutmut_11,
+    "x_setup_tracing__mutmut_12": x_setup_tracing__mutmut_12,
+    "x_setup_tracing__mutmut_13": x_setup_tracing__mutmut_13,
+    "x_setup_tracing__mutmut_14": x_setup_tracing__mutmut_14,
+    "x_setup_tracing__mutmut_15": x_setup_tracing__mutmut_15,
+    "x_setup_tracing__mutmut_16": x_setup_tracing__mutmut_16,
+    "x_setup_tracing__mutmut_17": x_setup_tracing__mutmut_17,
+    "x_setup_tracing__mutmut_18": x_setup_tracing__mutmut_18,
+    "x_setup_tracing__mutmut_19": x_setup_tracing__mutmut_19,
+    "x_setup_tracing__mutmut_20": x_setup_tracing__mutmut_20,
+    "x_setup_tracing__mutmut_21": x_setup_tracing__mutmut_21,
+    "x_setup_tracing__mutmut_22": x_setup_tracing__mutmut_22,
+    "x_setup_tracing__mutmut_23": x_setup_tracing__mutmut_23,
+    "x_setup_tracing__mutmut_24": x_setup_tracing__mutmut_24,
+    "x_setup_tracing__mutmut_25": x_setup_tracing__mutmut_25,
+    "x_setup_tracing__mutmut_26": x_setup_tracing__mutmut_26,
+    "x_setup_tracing__mutmut_27": x_setup_tracing__mutmut_27,
+    "x_setup_tracing__mutmut_28": x_setup_tracing__mutmut_28,
+    "x_setup_tracing__mutmut_29": x_setup_tracing__mutmut_29,
+    "x_setup_tracing__mutmut_30": x_setup_tracing__mutmut_30,
+    "x_setup_tracing__mutmut_31": x_setup_tracing__mutmut_31,
+    "x_setup_tracing__mutmut_32": x_setup_tracing__mutmut_32,
+    "x_setup_tracing__mutmut_33": x_setup_tracing__mutmut_33,
+    "x_setup_tracing__mutmut_34": x_setup_tracing__mutmut_34,
+    "x_setup_tracing__mutmut_35": x_setup_tracing__mutmut_35,
+    "x_setup_tracing__mutmut_36": x_setup_tracing__mutmut_36,
+    "x_setup_tracing__mutmut_37": x_setup_tracing__mutmut_37,
+    "x_setup_tracing__mutmut_38": x_setup_tracing__mutmut_38,
+    "x_setup_tracing__mutmut_39": x_setup_tracing__mutmut_39,
+    "x_setup_tracing__mutmut_40": x_setup_tracing__mutmut_40,
+    "x_setup_tracing__mutmut_41": x_setup_tracing__mutmut_41,
+    "x_setup_tracing__mutmut_42": x_setup_tracing__mutmut_42,
+    "x_setup_tracing__mutmut_43": x_setup_tracing__mutmut_43,
+    "x_setup_tracing__mutmut_44": x_setup_tracing__mutmut_44,
+    "x_setup_tracing__mutmut_45": x_setup_tracing__mutmut_45,
+    "x_setup_tracing__mutmut_46": x_setup_tracing__mutmut_46,
+    "x_setup_tracing__mutmut_47": x_setup_tracing__mutmut_47,
+    "x_setup_tracing__mutmut_48": x_setup_tracing__mutmut_48,
+    "x_setup_tracing__mutmut_49": x_setup_tracing__mutmut_49,
+    "x_setup_tracing__mutmut_50": x_setup_tracing__mutmut_50,
+    "x_setup_tracing__mutmut_51": x_setup_tracing__mutmut_51,
+    "x_setup_tracing__mutmut_52": x_setup_tracing__mutmut_52,
+    "x_setup_tracing__mutmut_53": x_setup_tracing__mutmut_53,
+    "x_setup_tracing__mutmut_54": x_setup_tracing__mutmut_54,
+    "x_setup_tracing__mutmut_55": x_setup_tracing__mutmut_55,
+    "x_setup_tracing__mutmut_56": x_setup_tracing__mutmut_56,
+    "x_setup_tracing__mutmut_57": x_setup_tracing__mutmut_57,
+    "x_setup_tracing__mutmut_58": x_setup_tracing__mutmut_58,
+    "x_setup_tracing__mutmut_59": x_setup_tracing__mutmut_59,
+    "x_setup_tracing__mutmut_60": x_setup_tracing__mutmut_60,
+    "x_setup_tracing__mutmut_61": x_setup_tracing__mutmut_61,
+    "x_setup_tracing__mutmut_62": x_setup_tracing__mutmut_62,
+    "x_setup_tracing__mutmut_63": x_setup_tracing__mutmut_63,
+    "x_setup_tracing__mutmut_64": x_setup_tracing__mutmut_64,
+    "x_setup_tracing__mutmut_65": x_setup_tracing__mutmut_65,
+    "x_setup_tracing__mutmut_66": x_setup_tracing__mutmut_66,
+    "x_setup_tracing__mutmut_67": x_setup_tracing__mutmut_67,
+    "x_setup_tracing__mutmut_68": x_setup_tracing__mutmut_68,
+    "x_setup_tracing__mutmut_69": x_setup_tracing__mutmut_69,
+    "x_setup_tracing__mutmut_70": x_setup_tracing__mutmut_70,
+    "x_setup_tracing__mutmut_71": x_setup_tracing__mutmut_71,
+    "x_setup_tracing__mutmut_72": x_setup_tracing__mutmut_72,
+    "x_setup_tracing__mutmut_73": x_setup_tracing__mutmut_73,
+    "x_setup_tracing__mutmut_74": x_setup_tracing__mutmut_74,
+    "x_setup_tracing__mutmut_75": x_setup_tracing__mutmut_75,
+    "x_setup_tracing__mutmut_76": x_setup_tracing__mutmut_76,
+    "x_setup_tracing__mutmut_77": x_setup_tracing__mutmut_77,
+    "x_setup_tracing__mutmut_78": x_setup_tracing__mutmut_78,
+    "x_setup_tracing__mutmut_79": x_setup_tracing__mutmut_79,
+    "x_setup_tracing__mutmut_80": x_setup_tracing__mutmut_80,
+    "x_setup_tracing__mutmut_81": x_setup_tracing__mutmut_81,
+    "x_setup_tracing__mutmut_82": x_setup_tracing__mutmut_82,
+    "x_setup_tracing__mutmut_83": x_setup_tracing__mutmut_83,
+    "x_setup_tracing__mutmut_84": x_setup_tracing__mutmut_84,
+    "x_setup_tracing__mutmut_85": x_setup_tracing__mutmut_85,
+    "x_setup_tracing__mutmut_86": x_setup_tracing__mutmut_86,
+    "x_setup_tracing__mutmut_87": x_setup_tracing__mutmut_87,
 }
-x_setup_tracing__mutmut_orig.__name__ = 'x_setup_tracing'
+x_setup_tracing__mutmut_orig.__name__ = "x_setup_tracing"

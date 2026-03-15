@@ -2,12 +2,17 @@ import pandas as pd
 from unittest.mock import patch
 from datetime import datetime
 
-from shared.infrastructure.adapters.pandas.types import ensure_datetime_col, ensure_list_col
+from shared.infrastructure.adapters.pandas.types import (
+    ensure_datetime_col,
+    ensure_list_col,
+)
+
 
 def test_ensure_datetime_col_already_datetime():
     s = pd.Series([datetime(2021, 1, 1), datetime(2022, 1, 1)])
     result = ensure_datetime_col(s)
     assert result is s
+
 
 def test_ensure_datetime_col_convertible_strings():
     s = pd.Series(["2020-01-01", "2021-02-01"])
@@ -15,11 +20,13 @@ def test_ensure_datetime_col_convertible_strings():
     assert pd.api.types.is_datetime64_any_dtype(result)
     assert result[0] == pd.Timestamp("2020-01-01")
 
+
 def test_ensure_datetime_col_invalid_strings_become_nat():
     s = pd.Series(["not-a-date", "2021-02-01"])
     result = ensure_datetime_col(s)
     assert pd.isna(result[0])
     assert result[1] == pd.Timestamp("2021-02-01")
+
 
 def test_ensure_list_col_already_list_or_tuple():
     s = pd.Series([["a", "b"], ("c", "d")])
@@ -27,11 +34,13 @@ def test_ensure_list_col_already_list_or_tuple():
     assert result[0] == ["a", "b"]
     assert result[1] == ("c", "d")
 
+
 def test_ensure_list_col_none_becomes_empty_list():
     s = pd.Series([None, [1, 2]])
     result = ensure_list_col(s)
     assert result[0] == []
     assert result[1] == [1, 2]
+
 
 def test_ensure_list_col_scalar_becomes_list():
     s = pd.Series(["single_val", 123])
@@ -50,8 +59,9 @@ def test_ensure_datetime_col_bypasses_conversion_if_already_datetime():
 
     # Fazemos um patch (mock) DIRETAMENTE na referência que o seu módulo usa
     # SOTA: Patching the 'pd' object inside the target module to verify bypass
-    with patch("shared.infrastructure.adapters.pandas.types.pd.to_datetime") as mock_to_datetime:
-
+    with patch(
+        "shared.infrastructure.adapters.pandas.types.pd.to_datetime"
+    ) as mock_to_datetime:
         # Quando executamos a função
         result = ensure_datetime_col(s)
 
@@ -72,7 +82,9 @@ def test_ensure_datetime_col_calls_pandas_with_exact_safeguards():
     s = pd.Series(["2024-01-01"])
 
     # Interceptamos a chamada ao Pandas
-    with patch("shared.infrastructure.adapters.pandas.types.pd.to_datetime") as mock_to_datetime:
+    with patch(
+        "shared.infrastructure.adapters.pandas.types.pd.to_datetime"
+    ) as mock_to_datetime:
         # Configuramos o mock para devolver um valor qualquer para não quebrar a lógica
         mock_to_datetime.return_value = pd.Series([pd.Timestamp("2024-01-01")])
 
