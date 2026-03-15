@@ -13,34 +13,24 @@ from shared.infrastructure.database.connection import engine
 from shared.infrastructure.monitoring import metrics
 from shared.infrastructure.monitoring.tracing import OTelLogFilter, setup_tracing
 
-# Ensure the logging directory exists before initializing file handlers.
-# Standard fail-fast principle during infrastructure bootstrap.
-os.makedirs(settings.app.log_dir, exist_ok=True)
+from shared.infrastructure.monitoring.logging import setup_structlog
+import structlog
+import uuid
 
-# Standardized Log format for observability.
-# Injecting trace_id and span_id allows seamless correlation between
-# logs in Loki and distributed traces in Tempo.
-LOG_FORMAT = (
-    "%(asctime)s [%(levelname)s] "
-    "[trace_id=%(trace_id)s span_id=%(span_id)s] "
-    "%(name)s: %(message)s"
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format=LOG_FORMAT,
-    handlers=[
-        logging.FileHandler(f"{settings.app.log_dir}/{settings.app.log_name}"),
-        logging.StreamHandler(),
-    ],
-)
+# Bootstraps structlog (12-Factor App)
+# We use is_local_dev if we want colored output locally.
+is_local_dev = settings.app.environment in ("development", "local") if hasattr(settings.app, "environment") else False
+# Fallback if environment doesn't exist on settings.app
+# We'll just assume local dev if not explicitly production.
+# Actually, the user's instructions didn't specify exactly about environment, but let's default to False or check settings.
+setup_structlog(log_level="INFO", is_local_dev=is_local_dev)
 
 # Apply the OTel filter to global logging logic.
 otel_filter = OTelLogFilter()
 for handler in logging.root.handlers:
     handler.addFilter(otel_filter)
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger().bind(bounded_context="api")
 
 
 @asynccontextmanager
@@ -104,6 +94,14 @@ async def prometheus_middleware(request: Request, call_next):
         request.scope.get("route").path
         if request.scope.get("route")
         else request.url.path
+    )
+
+    request_id = str(uuid.uuid4())
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(
+        http_method=method,
+        path=path,
+        request_id=request_id,
     )
 
     # 1. SATURATION/CONCURRENCY: Track active requests.

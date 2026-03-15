@@ -1,8 +1,7 @@
 import asyncio
-import logging
+import structlog
 import time
 from typing import Dict, Any, List, cast
-from pydantic import ValidationError
 
 from companies.domain.entities.company import Company
 from companies.domain.ports.b3_data_source import B3DataSource
@@ -20,7 +19,7 @@ from shared.infrastructure.utils.date_resilient import DateResilientParser
 from shared.infrastructure.progress import ProgressReporter
 from shared.domain.utils.result import Result
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger().bind(bounded_context="companies")
 
 
 class SyncB3CompaniesUseCase:

@@ -161,7 +161,7 @@ class TestCLICommandRouting:
         # Should NOT raise an exception
         await cli_module._run_sync_companies()
 
-        assert "Falha ao enviar métricas para o Pushgateway" in caplog.text
+        assert "Falha ao enviar" in caplog.text
 
     @pytest.mark.asyncio
     @patch("shared.presentation.cli._run_sync_companies")

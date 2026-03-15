@@ -11,23 +11,18 @@ Usage (from Docker):
 """
 
 import asyncio
-import logging
 import sys
 import os
 
 # --- Logging Setup (mirrors main.py SOTA configuration) ---
 from shared.infrastructure.config import settings
+from shared.infrastructure.monitoring.logging import setup_structlog
+import structlog
 
-os.makedirs(settings.app.log_dir, exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s]: %(message)s",
-    handlers=[
-        logging.FileHandler(f"{settings.app.log_dir}/{settings.app.log_name}"),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
+is_local_dev = settings.app.environment in ("development", "local") if hasattr(settings.app, "environment") else False
+setup_structlog(log_level="INFO", is_local_dev=is_local_dev)
+
+logger = structlog.get_logger().bind(bounded_context="cli")
 
 
 def _create_sync_use_case():

@@ -23,6 +23,8 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.61b0",
     "opentelemetry-instrumentation-sqlalchemy>=0.61b0",
     "opentelemetry-instrumentation-httpx>=0.61b0",
+    "structlog>=25.5.0",
+    "colorama>=0.4.6",
 ]
 
 [project.optional-dependencies]

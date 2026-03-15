@@ -1,9 +1,9 @@
-import logging
+import structlog
 from datetime import datetime
 from typing import Optional, List
 from shared.domain.ports.telemetry_port import TelemetryPort
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger().bind(bounded_context="shared.utils")
 
 
 class DateResilientParser:

@@ -6,6 +6,7 @@ Strict adherence to Hexagonal Architecture ensures that the Domain layer
 remains pure and unaware of this instrumentation.
 """
 
+import structlog
 import logging
 import os
 from typing import Optional
@@ -19,7 +20,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger().bind(bounded_context="tracing")
 
 
 class OTelLogFilter(logging.Filter):
