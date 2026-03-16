@@ -1,4 +1,4 @@
-import logging
+# import logging
 import time
 from contextlib import asynccontextmanager
 
@@ -10,7 +10,7 @@ from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.config import settings
 from shared.infrastructure.database.connection import engine
 from shared.infrastructure.monitoring import metrics
-from shared.infrastructure.monitoring.tracing import OTelLogFilter, setup_tracing
+from shared.infrastructure.monitoring.tracing import setup_tracing
 
 from shared.infrastructure.monitoring.logging import setup_structlog
 import structlog
@@ -23,11 +23,6 @@ is_local_dev = settings.app.environment in ("development", "local") if hasattr(s
 # We'll just assume local dev if not explicitly production.
 # Actually, the user's instructions didn't specify exactly about environment, but let's default to False or check settings.
 setup_structlog(log_level="INFO", is_local_dev=is_local_dev)
-
-# Apply the OTel filter to global logging logic.
-otel_filter = OTelLogFilter()
-for handler in logging.root.handlers:
-    handler.addFilter(otel_filter)
 
 logger = structlog.get_logger().bind(bounded_context="api")
 
