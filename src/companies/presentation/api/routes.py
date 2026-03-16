@@ -1,33 +1,26 @@
-import datetime
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from shared.presentation.api.route_classes import SRETelemetryRoute
-from shared.infrastructure.queue.connection import get_arq_redis_pool
-from shared.infrastructure.queue.task_names import TaskNames
+from companies.application.use_cases.trigger_b3_sync import TriggerB3SyncUseCase
+from companies.presentation.api.dependencies import get_trigger_b3_sync_use_case
 
 router = APIRouter(prefix="/companies", tags=["Companies"], route_class=SRETelemetryRoute)
 
 @router.post("/sync", status_code=202)
-async def trigger_companies_sync():
+async def trigger_companies_sync(
+    use_case: TriggerB3SyncUseCase = Depends(get_trigger_b3_sync_use_case)
+):
     """Triggers an asynchronous synchronization with the B3 market catalog.
 
     Synchronization is a high-latency I/O operation (scraping thousands
-    of issuers). We use the ARQ redis job queue to process it off the 
-    main API resources, protecting against OOM exceptions.
-    
-    Idempotent logic relies on job UUID tracking by Day.
+    of issuers). We use a domain Use Case interface which abstracts the Message Broker,
+    acting as the starting boundary of the Application layer logic.
 
     Returns:
         dict: A notification that the task has been accepted.
     """
-    redis_queue = await get_arq_redis_pool()
-    day_id = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-    
-    await redis_queue.enqueue_job(
-        TaskNames.SYNC_B3_COMPANIES,
-        _job_id=f"sync_b3_{day_id}"
-    )
+    await use_case.execute()
 
     return {
         "status": "accepted",  # pragma: no mutate
-        "message": "B3 Company synchronization started in the background via ARQ.",  # pragma: no mutate
+        "message": "B3 Company synchronization started in the background.",  # pragma: no mutate
     }

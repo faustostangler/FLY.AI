@@ -12,7 +12,9 @@ from shared.domain.ports.telemetry_port import TelemetryPort
 from shared.infrastructure.adapters.prometheus_telemetry import (
     PrometheusTelemetryAdapter,
 )
-
+from shared.domain.ports.job_queue_port import JobQueuePort
+from shared.infrastructure.adapters.arq_job_queue import ArqJobQueueAdapter
+from companies.application.use_cases.trigger_b3_sync import TriggerB3SyncUseCase
 
 def get_telemetry_port() -> TelemetryPort:
     """Dependency Provider for TelemetryPort"""
@@ -40,3 +42,15 @@ def get_sync_b3_companies_use_case(
     return SyncB3CompaniesUseCase(
         data_source=data_source, repository=repository, telemetry=telemetry
     )
+
+
+def get_job_queue_port() -> JobQueuePort:
+    """Dependency Provider for the primary Job Queue Port."""
+    return ArqJobQueueAdapter()
+
+
+def get_trigger_b3_sync_use_case(
+    job_queue: JobQueuePort = Depends(get_job_queue_port)
+) -> TriggerB3SyncUseCase:
+    """Dependency Provider for triggering B3 background syncs."""
+    return TriggerB3SyncUseCase(job_queue=job_queue)

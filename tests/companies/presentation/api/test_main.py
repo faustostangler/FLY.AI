@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
+from companies.presentation.api.dependencies import get_trigger_b3_sync_use_case
 
 from main import app
 from companies.infrastructure.adapters.database.models import Base
@@ -16,21 +17,20 @@ def test_health_check():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-
-
-@patch("companies.presentation.api.routes.get_arq_redis_pool")
-def test_trigger_companies_sync(mock_get_arq_redis_pool):
-    # Mock ARQ enqueuer
-    mock_redis = AsyncMock()
-    mock_get_arq_redis_pool.return_value = mock_redis
+def test_trigger_companies_sync():
+    # Mock the new Trigger Use Case
+    mock_use_case = MagicMock()
+    mock_use_case.execute = AsyncMock()
+    
+    app.dependency_overrides[get_trigger_b3_sync_use_case] = lambda: mock_use_case
 
     response = client.post("/api/v1/companies/sync")
     
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
     
-    # Assert ARQ task was scheduled
-    mock_redis.enqueue_job.assert_called_once()
-    args, kwargs = mock_redis.enqueue_job.call_args
-    assert args[0] == "run_sync_b3_companies"
-    assert "_job_id" in kwargs
+    # Assert Domain Use Case was executed, abstracting the infrastructure
+    mock_use_case.execute.assert_called_once()
+    
+    # Cleanup override
+    app.dependency_overrides.pop(get_trigger_b3_sync_use_case, None)
