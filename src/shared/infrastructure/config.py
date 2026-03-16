@@ -37,6 +37,7 @@ class AppSettings(BaseModel):
     max_concurrency: int = 50
     log_dir: str = "logs"
     log_name: str = "app.log"
+    environment: str = Field(description="Deployment environment (development, staging, production) (APP__ENVIRONMENT)")
     model_config = {"extra": "ignore"}
 
 
@@ -222,20 +223,27 @@ class OtelSettings(BaseModel):
         endpoint (str): The OTLP gRPC endpoint for trace ingestion.
         service_name (str): Identifier for this service within the trace topology.
         enabled (bool): Toggle for telemetry collection to avoid overhead in lean environments.
+        excluded_urls (str): Urls excluded from OTel tracing.
     """
 
     endpoint: str = Field(
-        default="http://tempo:4317",
-        description="OTLP gRPC endpoint for trace export",
+        description="OTLP gRPC endpoint for trace export (OTEL__ENDPOINT)",
     )
     service_name: str = Field(
-        default="fly_ai_core",
-        description="OTel service.name resource attribute",
+        description="OTel service.name resource attribute (OTEL__SERVICE_NAME)",
     )
     enabled: bool = Field(
         default=True,
         description="Master switch for distributed tracing",
     )
+    excluded_urls: str = Field(
+        description="Urls excluded from OTel tracing (OTEL__EXCLUDED_URLS)"
+    )
+    model_config = {"extra": "ignore"}
+
+class PrometheusSettings(BaseModel):
+    """Configuration for Prometheus metrics."""
+    pushgateway_url: str = Field(description="URL for Prometheus Pushgateway (PROMETHEUS__PUSHGATEWAY_URL)")
     model_config = {"extra": "ignore"}
 
 
@@ -250,7 +258,8 @@ class Settings(BaseSettings):
     db: DatabaseSettings
     redis: RedisSettings = RedisSettings()
     b3: B3Settings = B3Settings()
-    otel: OtelSettings = OtelSettings()
+    otel: OtelSettings
+    prometheus: PrometheusSettings
 
     model_config = SettingsConfigDict(
         env_file=tuple(ENV_FILES),

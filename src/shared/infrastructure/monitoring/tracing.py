@@ -8,7 +8,6 @@ remains pure and unaware of this instrumentation.
 
 import structlog
 import logging
-import os
 from typing import Optional
 
 from opentelemetry import trace
@@ -18,6 +17,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from shared.infrastructure.config import settings
 
 
 logger = structlog.get_logger().bind(bounded_context="tracing")
@@ -82,8 +82,8 @@ def setup_tracing(
         This function is idempotent and should be called once during the
         application's 'startup' or 'lifespan' event.
     """
-    resolved_name = service_name or os.getenv("OTEL_SERVICE_NAME", "fly_ai_core")
-    environment = os.getenv("APP_ENV", "production")
+    resolved_name = service_name or settings.otel.service_name
+    environment = settings.app.environment
 
     # Identity Registry: Defines how this service appears in the infrastructure map.
     resource = Resource.create(
@@ -98,7 +98,7 @@ def setup_tracing(
     provider = TracerProvider(resource=resource)
 
     # OTLP / gRPC Exporter: Sends telemetry to the collector (Tempo).
-    otlp_endpoint = os.getenv("OTLP_ENDPOINT", "http://tempo:4317")
+    otlp_endpoint = settings.otel.endpoint
 
     try:
         exporter = OTLPSpanExporter(
@@ -129,7 +129,7 @@ def setup_tracing(
     if app is not None:
         # Exclude high-frequency, low-value routes like /metrics or /health
         # to reduce noise and lower ingestion costs (FinOps).
-        excluded_urls_str = os.getenv("OTEL_EXCLUDED_URLS", "metrics,health")
+        excluded_urls_str = settings.otel.excluded_urls
 
         FastAPIInstrumentor.instrument_app(
             app,  # type: ignore[arg-type]

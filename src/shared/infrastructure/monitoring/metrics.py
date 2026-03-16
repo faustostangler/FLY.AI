@@ -1,5 +1,4 @@
 import math
-import os
 from prometheus_client import Counter, Histogram, Gauge
 from shared.infrastructure.config import settings
 
@@ -198,9 +197,6 @@ APP_INFO = Gauge(
 )
 
 # Initialize static values at startup.
-# Using 'development' as a fallback prevents empty labels if the environment
-# variable is missing in non-orchestrated environments.
-env = os.getenv("APP_ENV", "development")
 APP_INFO.labels(
-    version=getattr(settings.app, "version", "unknown"), environment=env
+    version=getattr(settings.app, "version", "unknown"), environment=settings.app.environment
 ).set(1)

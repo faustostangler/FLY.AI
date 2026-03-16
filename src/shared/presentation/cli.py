@@ -12,7 +12,6 @@ Usage (from Docker):
 
 import asyncio
 import sys
-import os
 
 # --- Logging Setup (mirrors main.py SOTA configuration) ---
 from shared.infrastructure.config import settings
@@ -89,7 +88,7 @@ async def _run_sync_companies():
         # SOTA: EMPURRAR PARA O PUSHGATEWAY ANTES DO CONTÊINER MORRER
         from prometheus_client import push_to_gateway, REGISTRY
 
-        pushgateway_url = os.getenv("PUSHGATEWAY_URL", "http://metrics-ingestion:9091")
+        pushgateway_url = settings.prometheus.pushgateway_url
 
         try:
             logger.info(
