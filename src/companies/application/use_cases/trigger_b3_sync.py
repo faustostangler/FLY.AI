@@ -17,10 +17,14 @@ class TriggerB3SyncUseCase:
     def __init__(self, job_queue: JobQueuePort):
         self._job_queue = job_queue
 
-    async def execute(self) -> None:
-        """Triggers the background B3 Sync job, enforcing daily idempotency."""
+    async def execute(self, reference_date: datetime.date) -> None:
+        """Triggers the background B3 Sync job, enforcing daily idempotency.
+        
+        Args:
+            reference_date (datetime.date): The logic-bounded date used for idempotency tracking.
+        """
         # Domain rule for idempotency: one B3 sync per day
-        day_id = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        day_id = reference_date.strftime("%Y-%m-%d")
         job_id = f"sync_b3_{day_id}"
         
         logger.info("Triggering B3 Sync job in background", job_id=job_id)

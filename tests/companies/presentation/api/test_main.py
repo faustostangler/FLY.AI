@@ -29,8 +29,11 @@ def test_trigger_companies_sync():
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
     
-    # Assert Domain Use Case was executed, abstracting the infrastructure
+    # Assert Domain Use Case was executed with a reference date from presentation
     mock_use_case.execute.assert_called_once()
+    args, kwargs = mock_use_case.execute.call_args
+    import datetime
+    assert isinstance(kwargs["reference_date"], datetime.date)
     
     # Cleanup override
     app.dependency_overrides.pop(get_trigger_b3_sync_use_case, None)

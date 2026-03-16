@@ -1,3 +1,4 @@
+import datetime
 from fastapi import APIRouter, Depends
 from shared.presentation.api.route_classes import SRETelemetryRoute
 from companies.application.use_cases.trigger_b3_sync import TriggerB3SyncUseCase
@@ -18,7 +19,7 @@ async def trigger_companies_sync(
     Returns:
         dict: A notification that the task has been accepted.
     """
-    await use_case.execute()
+    await use_case.execute(reference_date=datetime.datetime.utcnow().date())
 
     return {
         "status": "accepted",  # pragma: no mutate
