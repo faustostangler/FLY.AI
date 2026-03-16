@@ -57,7 +57,7 @@ class Company:
     registrar: Optional[str] = None
     main_registrar: Optional[str] = None
     status: Optional[str] = None
-    type: Optional[str] = None
+    company_type: Optional[str] = None
     market_indicator: Optional[str] = None
 
     # Financial instrument identifiers.

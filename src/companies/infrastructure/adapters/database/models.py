@@ -39,7 +39,7 @@ class CompanyModel(Base, AuditMixin):
     registrar: Mapped[Optional[str]] = mapped_column(String)
     main_registrar: Mapped[Optional[str]] = mapped_column(String)
     status: Mapped[Optional[str]] = mapped_column(String)
-    type: Mapped[Optional[str]] = mapped_column(String)
+    company_type: Mapped[Optional[str]] = mapped_column(String)
     market_indicator: Mapped[Optional[str]] = mapped_column(String)
 
     # Securities Identifiers

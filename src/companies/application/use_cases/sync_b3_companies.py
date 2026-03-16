@@ -110,7 +110,7 @@ class SyncB3CompaniesUseCase:
             or detailed_info.get("institutionPreferred")
             or detailed_info.get("main_registrar"),
             "status": detailed_info.get("status"),
-            "type": detailed_info.get("type"),
+            "company_type": detailed_info.get("type"),
             "market_indicator": detailed_info.get("marketIndicator"),
             "ticker_codes": ticker_codes,
             "isin_codes": isin_codes,
