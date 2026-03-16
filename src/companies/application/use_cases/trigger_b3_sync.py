@@ -2,6 +2,7 @@ import datetime
 import structlog
 
 from shared.domain.ports.job_queue_port import JobQueuePort
+from shared.domain.ports.telemetry_port import TelemetryPort
 from shared.infrastructure.queue.task_names import TaskNames
 
 logger = structlog.get_logger().bind(bounded_context="companies")
@@ -14,8 +15,9 @@ class TriggerB3SyncUseCase:
     and decouples the presentation layer from the infrastructure queueing details.
     """
 
-    def __init__(self, job_queue: JobQueuePort):
+    def __init__(self, job_queue: JobQueuePort, telemetry: TelemetryPort):
         self._job_queue = job_queue
+        self._telemetry = telemetry
 
     async def execute(self, reference_date: datetime.date) -> None:
         """Triggers the background B3 Sync job, enforcing daily idempotency.
@@ -29,7 +31,12 @@ class TriggerB3SyncUseCase:
         
         logger.info("Triggering B3 Sync job in background", job_id=job_id)
         
-        await self._job_queue.enqueue(
+        enqueued = await self._job_queue.enqueue(
             task_name=TaskNames.SYNC_B3_COMPANIES,
             job_id=job_id
         )
+
+        if not enqueued:
+            logger.warning("Sync trigger rejected: Job already in queue for today", job_id=job_id)
+            self._telemetry.increment_sync_trigger_rejected(reason="daily_idempotency")
+

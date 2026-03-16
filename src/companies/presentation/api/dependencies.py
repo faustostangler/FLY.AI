@@ -50,7 +50,8 @@ def get_job_queue_port() -> JobQueuePort:
 
 
 def get_trigger_b3_sync_use_case(
-    job_queue: JobQueuePort = Depends(get_job_queue_port)
+    job_queue: JobQueuePort = Depends(get_job_queue_port),
+    telemetry: TelemetryPort = Depends(get_telemetry_port),
 ) -> TriggerB3SyncUseCase:
     """Dependency Provider for triggering B3 background syncs."""
-    return TriggerB3SyncUseCase(job_queue=job_queue)
+    return TriggerB3SyncUseCase(job_queue=job_queue, telemetry=telemetry)

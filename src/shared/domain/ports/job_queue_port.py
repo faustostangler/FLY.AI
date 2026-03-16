@@ -10,7 +10,7 @@ class JobQueuePort(ABC):
     """
 
     @abstractmethod
-    async def enqueue(self, task_name: str, job_id: Optional[str] = None, **kwargs: Any) -> None:
+    async def enqueue(self, task_name: str, job_id: Optional[str] = None, **kwargs: Any) -> bool:
         """Enqueues a task for background processing.
 
         Args:

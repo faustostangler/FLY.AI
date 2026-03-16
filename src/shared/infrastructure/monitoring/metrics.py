@@ -143,6 +143,12 @@ GENERIC_SYNC_ERRORS = Counter(
     ["type"],
 )
 
+SYNC_TRIGGER_REJECTED = Counter(
+    "domain_sync_trigger_rejected_total",
+    "Total times a sync was rejected (e.g., due to daily idempotency)",
+    ["reason"],
+)
+
 # EXTERNAL ADAPTER PERFORMANCE: Monitored via Rate Limit Detection.
 # Frequent 429s from B3 indicate that the 'max_concurrency' setting
 # is too aggressive for current infrastructure limits.

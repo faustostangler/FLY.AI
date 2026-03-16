@@ -10,6 +10,7 @@ from shared.infrastructure.monitoring.metrics import (
     NETWORK_TRANSMIT_BYTES_TOTAL,
     DATA_VALIDATION_ERRORS,
     GENERIC_SYNC_ERRORS,
+    SYNC_TRIGGER_REJECTED,
 )
 
 
@@ -52,3 +53,6 @@ class PrometheusTelemetryAdapter(TelemetryPort):
 
     def increment_generic_sync_error(self, type: str) -> None:
         GENERIC_SYNC_ERRORS.labels(type=type).inc()
+
+    def increment_sync_trigger_rejected(self, reason: str) -> None:
+        SYNC_TRIGGER_REJECTED.labels(reason=reason).inc()

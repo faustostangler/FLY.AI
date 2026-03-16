@@ -49,3 +49,7 @@ class TelemetryPort(ABC):
     @abstractmethod
     def increment_generic_sync_error(self, type: str) -> None:
         pass
+
+    @abstractmethod
+    def increment_sync_trigger_rejected(self, reason: str) -> None:
+        pass

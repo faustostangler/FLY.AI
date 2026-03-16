@@ -12,121 +12,6 @@ class TestSyncB3CompaniesUseCase:
         telemetry = MagicMock()
         return SyncB3CompaniesUseCase(data_source, repository, telemetry)
 
-    def test_map_b3_payload_to_entity_success(self, use_case):
-        # Arrange
-        basic_info = {
-            "issuingCompany": "PETR4",
-            "codeCVM": 9512,
-            "companyName": "PETROLEO BRASILEIRO S.A. PETROBRAS",
-        }
-
-        detailed_info = {
-            "tradingName": "PETROBRAS",
-            "cnpj": "33.000.167/0001-01",
-            "market": "Novo Mercado",
-            "industryClassification": "Petróleo, Gás e Biocombustíveis / Petróleo, Gás e Biocombustíveis / Exploração, Refino e Distribuição",
-            "otherCodes": [
-                {"code": "PETR3", "isin": "BRPETRACNOR9"},
-                {"code": "PETR4", "isin": "BRPETRACNPR6"},
-            ],
-            "website": "www.petrobras.com.br",
-            "status": "ATIVO",
-        }
-
-        # Act
-        company = use_case._map_b3_payload_to_entity(basic_info, detailed_info)
-
-        # Assert
-        assert company.ticker == "PETR4"
-        assert company.cvm_code == "9512"
-        assert company.company_name == "PETROLEO BRASILEIRO SA PETROBRAS"
-        assert company.sector == "PETROLEO GAS E BIOCOMBUSTIVEIS"
-        assert company.subsector == "PETROLEO GAS E BIOCOMBUSTIVEIS"
-        assert company.segment == "EXPLORACAO REFINO E DISTRIBUICAO"
-
-        # Security identifiers
-        assert "PETR3" in company.ticker_codes
-        assert "PETR4" in company.ticker_codes
-        assert "BRPETRACNOR9" in company.isin_codes
-        assert "BRPETRACNPR6" in company.isin_codes
-
-    def test_map_b3_payload_to_entity_with_missing_industry_classification(
-        self, use_case
-    ):
-        # Arrange
-        basic_info = {"issuingCompany": "TEST3", "codeCVM": 123, "companyName": "TEST"}
-        detailed_info = {"industryClassification": "Setor Unico", "otherCodes": []}
-
-        # Act
-        company = use_case._map_b3_payload_to_entity(basic_info, detailed_info)
-
-        # Assert
-        assert company.sector == "SETOR UNICO"
-        assert company.subsector == "SETOR UNICO"
-        assert company.segment == "SETOR UNICO"
-
-    def test_map_b3_payload_to_entity_with_none_other_codes(self, use_case):
-        # Arrange
-        basic_info = {"issuingCompany": "TEST3", "codeCVM": 123, "companyName": "TEST"}
-        detailed_info = {"otherCodes": None}
-
-        # Act
-        company = use_case._map_b3_payload_to_entity(basic_info, detailed_info)
-
-        # Assert
-        assert company.ticker_codes == []
-        assert company.isin_codes == []
-
-    def test_map_b3_payload_to_entity_with_dates(self, use_case):
-        # Arrange
-        basic_info = {
-            "issuingCompany": "VALE3",
-            "codeCVM": 4170,
-            "companyName": "VALE S.A.",
-            "dateListing": "1943-10-25",
-        }
-
-        detailed_info = {
-            "lastDate": "2024-03-12",
-            "dateQuotation": "2024-03-11",
-            "describleCategoryBVMF": "Categoria A",
-            "marketIndicator": "1",
-            "hasQuotation": True,
-            "hasEmissions": False,
-            "hasBDR": "N",
-        }
-
-        # Act
-        company = use_case._map_b3_payload_to_entity(basic_info, detailed_info)
-
-        # Assert
-        assert company.date_listing == datetime(1943, 10, 25)
-        assert company.last_date == datetime(2024, 3, 12)
-        assert company.date_quotation == datetime(2024, 3, 11)
-        assert company.describle_category_bvmf == "CATEGORIA A"
-        assert company.has_quotation is True
-        assert company.has_emissions is False
-        assert company.has_bdr is False
-
-    def test_map_b3_payload_to_entity_with_institutional_info(self, use_case):
-        # Arrange
-        basic_info = {"issuingCompany": "CBTC", "codeCVM": 123, "companyName": "TEMP"}
-        detailed_info = {
-            "issuingCompany": "BTC1",  # Should override
-            "companyName": "BITCOIN ETP",  # Should override
-            "institutionCommon": "BANCO A",
-            "institutionPreferred": "BANCO B3 S.A.",
-        }
-
-        # Act
-        company = use_case._map_b3_payload_to_entity(basic_info, detailed_info)
-
-        # Assert
-        assert company.ticker == "BTC1"
-        assert company.company_name == "BITCOIN ETP"
-        assert company.registrar == "BANCO A"
-        assert company.main_registrar == "BANCO B3 SA"
-
     @pytest.mark.asyncio
     async def test_process_single_company_errors(self, use_case):
         from shared.infrastructure.progress import ProgressReporter
@@ -137,6 +22,7 @@ class TestSyncB3CompaniesUseCase:
             CompanyDataValidationError,
             B3NetworkTimeoutError,
         )
+        from unittest.mock import AsyncMock, patch
 
         reporter = ProgressReporter(total=1)
         sem = asyncio.Semaphore(1)
@@ -149,9 +35,6 @@ class TestSyncB3CompaniesUseCase:
         assert isinstance(res_missing.error, CompanyDataValidationError)
 
         # 2. Rate Limit Exceeded
-        # using Any mock because we override the async nature
-        from unittest.mock import AsyncMock
-
         use_case._data_source.fetch_company_details = AsyncMock(
             side_effect=B3RateLimitExceededError("Limit")
         )
@@ -182,50 +65,51 @@ class TestSyncB3CompaniesUseCase:
         assert isinstance(res_generic.error, Exception)
         assert not isinstance(res_generic.error, CompanyValidationError)
 
-        # 5. Domain logic validation error (from DTO to Entity)
+        # 5. Domain logic validation error (from Mapper)
         use_case._data_source.fetch_company_details = AsyncMock(
             return_value={"details": "dummy"}
         )
-        use_case._map_b3_payload_to_entity = MagicMock(
-            side_effect=CompanyValidationError("Domain Logic Fail", "ticker")
-        )
-        res_domain = await use_case._process_single_company(
-            0, {"issuingCompany": "WEGE3", "codeCVM": "123"}, sem, reporter
-        )
-        assert res_domain.is_failure
-        assert isinstance(res_domain.error, CompanyValidationError)
+        with patch("companies.application.use_cases.sync_b3_companies.B3CompanyMapper.to_domain") as mock_mapper:
+            mock_mapper.side_effect = CompanyValidationError("Domain Logic Fail", "ticker")
+            res_domain = await use_case._process_single_company(
+                0, {"issuingCompany": "WEGE3", "codeCVM": "123"}, sem, reporter
+            )
+            assert res_domain.is_failure
+            assert isinstance(res_domain.error, CompanyValidationError)
 
-        # 6. Pydantic ValidationError (from DTO construction)
+        # 6. Pydantic ValidationError (from Mapper)
         from pydantic import ValidationError
-
-        # We need a mock ValidationError to throw
-        class MockException(Exception):
-            pass
-
-        try:
+        
+        # Helper to get a real ValidationError
+        def raise_val_error():
             from companies.application.dtos.b3_company_dto import B3CompanyPayloadDTO
+            B3CompanyPayloadDTO() # missing fields
 
-            B3CompanyPayloadDTO()  # Missing required fields will raise ValidationError
+        validation_error = None
+        try:
+            raise_val_error()
         except ValidationError as e:
             validation_error = e
 
-        use_case._map_b3_payload_to_entity = MagicMock(side_effect=validation_error)
-        res_pydantic = await use_case._process_single_company(
-            0, {"issuingCompany": "B3SA3", "codeCVM": "1234"}, sem, reporter
-        )
-        assert res_pydantic.is_failure
-        assert isinstance(res_pydantic.error, CompanyDataValidationError)
-        assert res_pydantic.error.field == "multiple"
+        with patch("companies.application.use_cases.sync_b3_companies.B3CompanyMapper.to_domain") as mock_mapper:
+            mock_mapper.side_effect = validation_error
+            res_pydantic = await use_case._process_single_company(
+                0, {"issuingCompany": "B3SA3", "codeCVM": "1234"}, sem, reporter
+            )
+            assert res_pydantic.is_failure
+            assert isinstance(res_pydantic.error, CompanyDataValidationError)
+            assert res_pydantic.error.field == "multiple"
 
         # 7. Happy path
         company_mock = MagicMock()
         company_mock.ticker = "BBAS3"
-        use_case._map_b3_payload_to_entity = MagicMock(return_value=company_mock)
-        res_success = await use_case._process_single_company(
-            0, {"issuingCompany": "BBAS3", "codeCVM": "789"}, sem, reporter
-        )
-        assert res_success.is_success
-        assert res_success.value == company_mock
+        with patch("companies.application.use_cases.sync_b3_companies.B3CompanyMapper.to_domain", return_value=company_mock):
+            res_success = await use_case._process_single_company(
+                0, {"issuingCompany": "BBAS3", "codeCVM": "789"}, sem, reporter
+            )
+            assert res_success.is_success
+            assert res_success.value == company_mock
+
 
     @pytest.mark.asyncio
     async def test_execute_orchestration_mixed_results(self, use_case):

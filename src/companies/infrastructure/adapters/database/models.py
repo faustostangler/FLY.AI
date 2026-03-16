@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from src.shared.infrastructure.database.mixins import AuditMixin
+from shared.infrastructure.database.mixins import AuditMixin
 
 class Base(DeclarativeBase):
     pass

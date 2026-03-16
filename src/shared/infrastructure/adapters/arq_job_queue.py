@@ -6,7 +6,7 @@ from shared.infrastructure.queue.connection import get_arq_redis_pool
 class ArqJobQueueAdapter(JobQueuePort):
     """Secondary Adapter: Implements the JobQueuePort using ARQ (Redis)."""
 
-    async def enqueue(self, task_name: str, job_id: Optional[str] = None, **kwargs: Any) -> None:
+    async def enqueue(self, task_name: str, job_id: Optional[str] = None, **kwargs: Any) -> bool:
         """Enqueues the job into the ARQ Redis pool.
         
         Args:
@@ -19,4 +19,5 @@ class ArqJobQueueAdapter(JobQueuePort):
         if job_id:
             enqueue_kwargs["_job_id"] = job_id
             
-        await redis_queue.enqueue_job(task_name, **enqueue_kwargs, **kwargs)
+        job = await redis_queue.enqueue_job(task_name, **enqueue_kwargs, **kwargs)
+        return job is not None
