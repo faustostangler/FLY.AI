@@ -34,7 +34,6 @@ def _create_sync_use_case():
     lives at the outermost layer (Presentation/Infrastructure).
     """
     from shared.infrastructure.database.connection import engine, SessionLocal
-    from companies.infrastructure.adapters.database.models import Base
     from companies.infrastructure.adapters.database.postgres_company_repository import (
         PostgresCompanyRepository,
     )
@@ -47,9 +46,6 @@ def _create_sync_use_case():
     from shared.infrastructure.adapters.prometheus_telemetry import (
         PrometheusTelemetryAdapter,
     )
-
-    # Ensure tables exist (same as FastAPI lifespan)
-    Base.metadata.create_all(bind=engine)
 
     # Wire Adapters into Ports
     session = SessionLocal()

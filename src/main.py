@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from prometheus_client import make_asgi_app
 
-from companies.infrastructure.adapters.database.models import Base
 from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.config import settings
 from shared.infrastructure.database.connection import engine
@@ -35,9 +34,6 @@ async def lifespan(app: FastAPI):
         1. Database Bootstrap: Synchronize base models with pgStore.
         2. Telemetry Bootstrap: Initialize OpenTelemetry auto-instrumentation.
     """
-    # Create tables automatically.
-    # TODO(Issue-Arch): Transition to Alembic for production migrations.
-    Base.metadata.create_all(bind=engine)
 
     # Bootstrap Distributed Tracing if enabled in settings.
     if settings.otel.enabled:

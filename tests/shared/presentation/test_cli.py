@@ -54,7 +54,6 @@ class TestCLICommandRouting:
         mock_session_instance = MagicMock()
         mock_session_local.return_value = mock_session_instance
 
-        mock_base = MagicMock()
         mock_repo = MagicMock()
         mock_data_source = MagicMock()
         mock_telemetry = MagicMock()
@@ -66,9 +65,6 @@ class TestCLICommandRouting:
             {
                 "shared.infrastructure.database.connection": MagicMock(
                     engine=mock_engine, SessionLocal=mock_session_local
-                ),
-                "companies.infrastructure.adapters.database.models": MagicMock(
-                    Base=mock_base
                 ),
                 "companies.infrastructure.adapters.database.postgres_company_repository": MagicMock(
                     PostgresCompanyRepository=mock_repo
@@ -89,7 +85,6 @@ class TestCLICommandRouting:
             use_case, session = cli_module._create_sync_use_case()
 
             # AssertIONS
-            mock_base.metadata.create_all.assert_called_once_with(bind=mock_engine)
             mock_repo.assert_called_once_with(session=mock_session_instance)
             mock_telemetry.assert_called_once()
             mock_data_source.assert_called_once_with(

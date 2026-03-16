@@ -1,49 +1,51 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
-from sqlalchemy.orm import declarative_base
+from datetime import datetime
+from typing import Optional
+from sqlalchemy import Boolean, DateTime, Integer, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from src.shared.infrastructure.database.mixins import AuditMixin
 
-Base = declarative_base()
-
+class Base(DeclarativeBase):
+    pass
 
 class CompanyModel(Base, AuditMixin):
     __tablename__ = "company_info"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # Core
-    ticker = Column(String, unique=True, nullable=False, index=True)
-    cvm_code = Column(String, nullable=False, index=True)
-    company_name = Column(String, nullable=False)
-    trading_name = Column(String)
-    cnpj = Column(String)
+    ticker: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    cvm_code: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    company_name: Mapped[str] = mapped_column(String, nullable=False)
+    trading_name: Mapped[Optional[str]] = mapped_column(String)
+    cnpj: Mapped[Optional[str]] = mapped_column(String)
 
     # Market details
-    listing = Column(String)
-    sector = Column(String)
-    subsector = Column(String)
-    segment = Column(String)
-    segment_eng = Column(String)
-    activity = Column(String)
-    describle_category_bvmf = Column(String)
+    listing: Mapped[Optional[str]] = mapped_column(String)
+    sector: Mapped[Optional[str]] = mapped_column(String)
+    subsector: Mapped[Optional[str]] = mapped_column(String)
+    segment: Mapped[Optional[str]] = mapped_column(String)
+    segment_eng: Mapped[Optional[str]] = mapped_column(String)
+    activity: Mapped[Optional[str]] = mapped_column(String)
+    describle_category_bvmf: Mapped[Optional[str]] = mapped_column(String)
 
     # Dates
-    date_listing = Column(DateTime)
-    last_date = Column(DateTime)
-    date_quotation = Column(DateTime)
+    date_listing: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    last_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    date_quotation: Mapped[Optional[datetime]] = mapped_column(DateTime)
 
     # Infrastructure / Legal
-    website = Column(String)
-    registrar = Column(String)
-    main_registrar = Column(String)
-    status = Column(String)
-    type = Column(String)
-    market_indicator = Column(String)
+    website: Mapped[Optional[str]] = mapped_column(String)
+    registrar: Mapped[Optional[str]] = mapped_column(String)
+    main_registrar: Mapped[Optional[str]] = mapped_column(String)
+    status: Mapped[Optional[str]] = mapped_column(String)
+    type: Mapped[Optional[str]] = mapped_column(String)
+    market_indicator: Mapped[Optional[str]] = mapped_column(String)
 
     # Securities Identifiers
-    ticker_codes = Column(String)
-    isin_codes = Column(String)
-    type_bdr = Column(String)
-    has_quotation = Column(Boolean)
-    has_emissions = Column(Boolean)
-    has_bdr = Column(Boolean)
+    ticker_codes: Mapped[Optional[str]] = mapped_column(String)
+    isin_codes: Mapped[Optional[str]] = mapped_column(String)
+    type_bdr: Mapped[Optional[str]] = mapped_column(String)
+    has_quotation: Mapped[Optional[bool]] = mapped_column(Boolean)
+    has_emissions: Mapped[Optional[bool]] = mapped_column(Boolean)
+    has_bdr: Mapped[Optional[bool]] = mapped_column(Boolean)
