@@ -254,9 +254,9 @@ class Settings(BaseSettings):
     APP__DEBUG=true to be mapped to settings.app.debug.
     """
 
-    app: AppSettings = AppSettings()
+    app: AppSettings
     db: DatabaseSettings
-    redis: RedisSettings = RedisSettings()
+    redis: RedisSettings
     b3: B3Settings = B3Settings()
     otel: OtelSettings
     prometheus: PrometheusSettings

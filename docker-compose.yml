@@ -22,7 +22,7 @@ services:
         max-size: "${DOCKER_LOG_MAX_SIZE}"
         max-file: "${DOCKER_LOG_MAX_FILE}"
     environment:
-      - APP_ENV=${APP_ENV}
+      - APP__ENVIRONMENT=${APP__ENVIRONMENT}
       - APP__DEBUG=${APP__DEBUG}
       - LOG_LEVEL=${LOG_LEVEL}
       - DB__USER=${DB__USER}
@@ -32,9 +32,10 @@ services:
       - DB__PORT=${DB_INTERNAL_PORT}
       - REDIS__HOST=${CACHE_SERVICE_NAME}
       - REDIS__PORT=${CACHE_INTERNAL_PORT}
-      - OTLP_ENDPOINT=${OTLP_ENDPOINT}
-      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME}
-      - OTEL_EXCLUDED_URLS=${OTEL_EXCLUDED_URLS}
+      - OTEL__ENDPOINT=${OTEL__ENDPOINT}
+      - OTEL__SERVICE_NAME=${OTEL__SERVICE_NAME}
+      - OTEL__EXCLUDED_URLS=${OTEL__EXCLUDED_URLS}
+      - PROMETHEUS__PUSHGATEWAY_URL=${PROMETHEUS__PUSHGATEWAY_URL}
             # -----------------------------------------------------------------------
             # ARCHITECT ALERT: LOCAL DEVELOPMENT (LIVE RELOAD)
             # Uncomment the volumes block below to enable live-reload.
@@ -74,7 +75,8 @@ services:
         max-file: "${DOCKER_LOG_MAX_FILE}"
     command: ["python", "-m", "src.shared.presentation.cli", "sync-companies"]
     environment:
-      - APP_ENV=${APP_ENV}
+      - APP__ENVIRONMENT=${APP__ENVIRONMENT}
+      - PROMETHEUS__PUSHGATEWAY_URL=${PROMETHEUS__PUSHGATEWAY_URL}
       - DB__USER=${DB__USER}
       - DB__PASSWORD=${DB__PASSWORD}
       - DB__NAME=${DB__NAME}
