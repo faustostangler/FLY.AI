@@ -19,7 +19,7 @@ async def trigger_companies_sync(
     Returns:
         dict: A notification that the task has been accepted.
     """
-    await use_case.execute(reference_date=datetime.datetime.utcnow().date())
+    await use_case.execute(reference_date=datetime.datetime.utcnow())
 
     return {
         "status": "accepted",  # pragma: no mutate

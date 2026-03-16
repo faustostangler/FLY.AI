@@ -26,7 +26,8 @@ class TriggerB3SyncUseCase:
             reference_date (datetime.date): The logic-bounded date used for idempotency tracking.
         """
         # Domain rule for idempotency: one B3 sync per day
-        day_id = reference_date.strftime("%Y-%m-%d")
+        # day_id = reference_date.strftime("%Y-%m-%d")
+        day_id = reference_date.strftime("%Y-%m-%d %H:%M:%S")
         job_id = f"sync_b3_{day_id}"
         
         logger.info("Triggering B3 Sync job in background", job_id=job_id)
