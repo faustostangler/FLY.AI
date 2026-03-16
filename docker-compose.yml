@@ -73,7 +73,7 @@ services:
       options:
         max-size: "${DOCKER_LOG_MAX_SIZE}"
         max-file: "${DOCKER_LOG_MAX_FILE}"
-    command: ["python", "-m", "src.shared.presentation.cli", "sync-companies"]
+    command: ["arq", "src.shared.infrastructure.queue.worker_settings.WorkerConfig"]
     environment:
       - APP__ENVIRONMENT=${APP__ENVIRONMENT}
       - PROMETHEUS__PUSHGATEWAY_URL=${PROMETHEUS__PUSHGATEWAY_URL}
