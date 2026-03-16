@@ -11,13 +11,13 @@ from shared.infrastructure.monitoring.tracing import setup_tracing
 from shared.infrastructure.monitoring.logging import setup_structlog
 import structlog
 
-# Bootstraps structlog (12-Factor App)
-# We use is_local_dev if we want colored output locally.
-is_local_dev = settings.app.environment in ("development", "local") if hasattr(settings.app, "environment") else False
-# Fallback if environment doesn't exist on settings.app
-# We'll just assume local dev if not explicitly production.
-# Actually, the user's instructions didn't specify exactly about environment, but let's default to False or check settings.
-setup_structlog(log_level="INFO", is_local_dev=is_local_dev)
+# # Bootstraps structlog (12-Factor App)
+# # We use is_local_dev if we want colored output locally.
+# is_local_dev = settings.app.environment in ("development", "local") if hasattr(settings.app, "environment") else False
+# # Fallback if environment doesn't exist on settings.app
+# # We'll just assume local dev if not explicitly production.
+# # Actually, the user's instructions didn't specify exactly about environment, but let's default to False or check settings.
+# setup_structlog(log_level="INFO", is_local_dev=is_local_dev)
 
 logger = structlog.get_logger().bind(bounded_context="api")
 

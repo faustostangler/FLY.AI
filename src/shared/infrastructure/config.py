@@ -15,6 +15,41 @@ if ".envs/profile.env" in ENV_FILES:
     ENV_FILES.append(".envs/profile.env")
 
 
+class B3Settings(BaseModel):
+    """Constants and endpoints for the B3 External Data Source (Brazilian Stock Exchange).
+
+    Encapsulates knowledge about B3's internal API structure and data quality rules.
+
+    Attributes:
+        homepage_url (str): Entry point for the Playwright scraper.
+        initial_companies_api (str): B3 endpoint for fetching the initial company list.
+        detail_api (str): Endpoint for fine-grained company metadata.
+        financial_api (str): Endpoint for downloading historical financial reports.
+        referer_url (str): The common Referer header required for B3 API calls.
+        words_to_remove (list[str]): Noise phrases found in B3 data that must be scrubbed
+            to maintain Domain integrity (e.g., 'EM RECUPERACAO JUDICIAL').
+    """
+
+    homepage_url: str = (
+        "https://sistemaswebb3-listados.b3.com.br/listedCompaniesPage/?language=pt-br"
+    )
+    initial_companies_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetInitialCompanies/"
+    detail_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetDetail/"
+    financial_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedFinancial/"
+    referer_url: str = "https://sistemaswebb3-listados.b3.com.br/"
+    words_to_remove: list[str] = [
+        "  EM LIQUIDACAO",
+        " EM LIQUIDACAO",
+        " EXTRAJUDICIAL",
+        "  EM RECUPERACAO JUDICIAL",
+        "  EM REC JUDICIAL",
+        " EM RECUPERACAO JUDICIAL",
+        " EM LIQUIDACAO EXTRAJUDICIAL",
+        " EMPRESA FALIDA",
+    ]
+    model_config = {"extra": "ignore"}
+
+
 class AppSettings(BaseModel):
     """General application metadata and operational limits.
 
@@ -179,41 +214,6 @@ class RedisSettings(BaseModel):
         return values
 
 
-class B3Settings(BaseModel):
-    """Constants and endpoints for the B3 External Data Source (Brazilian Stock Exchange).
-
-    Encapsulates knowledge about B3's internal API structure and data quality rules.
-
-    Attributes:
-        homepage_url (str): Entry point for the Playwright scraper.
-        initial_companies_api (str): B3 endpoint for fetching the initial company list.
-        detail_api (str): Endpoint for fine-grained company metadata.
-        financial_api (str): Endpoint for downloading historical financial reports.
-        referer_url (str): The common Referer header required for B3 API calls.
-        words_to_remove (list[str]): Noise phrases found in B3 data that must be scrubbed
-            to maintain Domain integrity (e.g., 'EM RECUPERACAO JUDICIAL').
-    """
-
-    homepage_url: str = (
-        "https://sistemaswebb3-listados.b3.com.br/listedCompaniesPage/?language=pt-br"
-    )
-    initial_companies_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetInitialCompanies/"
-    detail_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetDetail/"
-    financial_api: str = "https://sistemaswebb3-listados.b3.com.br/listedCompaniesProxy/CompanyCall/GetListedFinancial/"
-    referer_url: str = "https://sistemaswebb3-listados.b3.com.br/"
-    words_to_remove: list[str] = [
-        "  EM LIQUIDACAO",
-        " EM LIQUIDACAO",
-        " EXTRAJUDICIAL",
-        "  EM RECUPERACAO JUDICIAL",
-        "  EM REC JUDICIAL",
-        " EM RECUPERACAO JUDICIAL",
-        " EM LIQUIDACAO EXTRAJUDICIAL",
-        " EMPRESA FALIDA",
-    ]
-    model_config = {"extra": "ignore"}
-
-
 class OtelSettings(BaseModel):
     """OpenTelemetry configuration for Distributed Tracing and Observability.
 
@@ -241,6 +241,7 @@ class OtelSettings(BaseModel):
     )
     model_config = {"extra": "ignore"}
 
+
 class PrometheusSettings(BaseModel):
     """Configuration for Prometheus metrics."""
     pushgateway_url: str = Field(description="URL for Prometheus Pushgateway (PROMETHEUS__PUSHGATEWAY_URL)")
@@ -254,10 +255,10 @@ class Settings(BaseSettings):
     APP__DEBUG=true to be mapped to settings.app.debug.
     """
 
+    b3: B3Settings = B3Settings()
     app: AppSettings
     db: DatabaseSettings
     redis: RedisSettings
-    b3: B3Settings = B3Settings()
     otel: OtelSettings
     prometheus: PrometheusSettings
 

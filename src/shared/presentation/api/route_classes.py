@@ -47,7 +47,12 @@ class SRETelemetryRoute(APIRoute):
                         direction="inbound", context="api"
                     ).inc(req_size)
                 except ValueError:
-                    pass
+                    structlog.get_logger().warning(
+                        "security_anomaly_detected",
+                        anomaly_type="invalid_content_length",
+                        value=content_length_str,
+                        direction="inbound",
+                    )
 
             try:
                 # Proceed to actual route dependencies and logic
@@ -72,7 +77,12 @@ class SRETelemetryRoute(APIRoute):
                             direction="outbound", context="api"
                         ).inc(resp_size)
                     except ValueError:
-                        pass
+                        structlog.get_logger().warning(
+                            "security_anomaly_detected",
+                            anomaly_type="invalid_content_length",
+                            value=out_content_length,
+                            direction="outbound",
+                        )
 
                 # 5. ERRORS: Track non-2xx status codes for SLI calculation.
                 if response.status_code >= 400:
