@@ -2,6 +2,7 @@ import asyncio
 import structlog
 import time
 from typing import Dict, Any, List, cast
+from pydantic import ValidationError
 
 from companies.domain.entities.company import Company
 from companies.domain.ports.b3_data_source import B3DataSource

@@ -1,19 +1,15 @@
-# import logging
-import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
 from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.config import settings
 from shared.infrastructure.database.connection import engine
-from shared.infrastructure.monitoring import metrics
 from shared.infrastructure.monitoring.tracing import setup_tracing
 
 from shared.infrastructure.monitoring.logging import setup_structlog
 import structlog
-import uuid
 
 # Bootstraps structlog (12-Factor App)
 # We use is_local_dev if we want colored output locally.
@@ -60,104 +56,6 @@ app = FastAPI(
 # Separation of concerns between domain APIs and infrastructure telemetry.
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
-
-
-@app.middleware("http")
-async def prometheus_middleware(request: Request, call_next):
-    """Captures 'The Four Golden Signals' for every HTTP transaction.
-
-    This middleware ensures that throughput, latency, errors, and
-    saturation are measured consistently across the entire API surface.
-
-    Args:
-        request (Request): The incoming FastAPI request.
-        call_next: The next handler in the ASGI chain.
-    """
-    # Prevent the scraper from scraping its own scraper metrics.
-    if request.url.path == "/metrics":
-        return await call_next(request)
-
-    method = request.method
-    # Use the route template (e.g., /api/v1/companies/{ticker}) to avoid
-    # cardinality explosion in Prometheus labels.
-    path = (
-        request.scope.get("route").path
-        if request.scope.get("route")
-        else request.url.path
-    )
-
-    request_id = str(uuid.uuid4())
-    structlog.contextvars.clear_contextvars()
-    structlog.contextvars.bind_contextvars(
-        http_method=method,
-        path=path,
-        request_id=request_id,
-    )
-
-    # 1. SATURATION/CONCURRENCY: Track active requests.
-    metrics.IN_FLIGHT_REQUESTS.labels(method=method, endpoint=path).inc()
-
-    # 2. TRAFFIC: Inbound payload measurement.
-    request_content_length = request.headers.get("content-length")
-    if request_content_length:
-        try:
-            req_size = int(request_content_length)
-            metrics.HTTP_REQUEST_SIZE.labels(method=method, endpoint=path).observe(
-                req_size
-            )
-            metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(
-                direction="inbound", context="api"
-            ).inc(req_size)
-        except ValueError:
-            pass
-
-    start_time = time.perf_counter()
-
-    try:
-        response = await call_next(request)
-        duration = time.perf_counter() - start_time
-        status_code = str(response.status_code)
-
-        # 3. LATENCY & THROUGHPUT: Observe performance per endpoint/status.
-        metrics.HTTP_REQUEST_DURATION.labels(method=method, endpoint=path).observe(
-            duration
-        )
-        metrics.HTTP_REQUESTS_TOTAL.labels(
-            method=method, endpoint=path, status=status_code
-        ).inc()
-
-        # 4. TRAFFIC: Outbound payload measurement.
-        content_length = response.headers.get("content-length")
-        if content_length:
-            try:
-                resp_size = int(content_length)
-                metrics.HTTP_RESPONSE_SIZE.labels(method=method, endpoint=path).observe(
-                    resp_size
-                )
-                metrics.NETWORK_TRANSMIT_BYTES_TOTAL.labels(
-                    direction="outbound", context="api"
-                ).inc(resp_size)
-            except ValueError:
-                pass
-
-        # 5. ERRORS: Track non-2xx status codes for SLI calculation.
-        if response.status_code >= 400:
-            metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
-                method=method, endpoint=path, error_type=status_code
-            ).inc()
-
-        return response
-
-    except Exception as e:
-        # Track unhandled exceptions as critical errors (Type 500 equivalent).
-        metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
-            method=method, endpoint=path, error_type=type(e).__name__
-        ).inc()
-        raise e
-
-    finally:
-        # Decrement concurrency gauge to maintain mathematical consistency.
-        metrics.IN_FLIGHT_REQUESTS.labels(method=method, endpoint=path).dec()
 
 
 @app.get("/health")

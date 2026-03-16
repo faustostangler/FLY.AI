@@ -41,7 +41,7 @@ def sample_company():
         website="https://www.petrobras.com.br",
         status="A",
         listing="BOLSA",
-        type="CI",
+        company_type="CI",
         market_indicator="1",
         has_quotation=True,
         has_emissions=True,

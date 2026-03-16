@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, BackgroundTasks
 from companies.application.use_cases.sync_b3_companies import SyncB3CompaniesUseCase
 from companies.presentation.api.dependencies import get_sync_b3_companies_use_case
+from shared.presentation.api.route_classes import SRETelemetryRoute
 
-router = APIRouter(prefix="/companies", tags=["Companies"])
+router = APIRouter(prefix="/companies", tags=["Companies"], route_class=SRETelemetryRoute)
 
 
 @router.post("/sync", status_code=202)
