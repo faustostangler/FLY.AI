@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.infrastructure.database.connection import get_db
 from companies.infrastructure.adapters.database.postgres_company_repository import (
@@ -21,7 +21,7 @@ def get_job_queue_port() -> JobQueuePort:
     """Dependency Provider for the primary Job Queue Port. Lightweight."""
     return ArqJobQueueAdapter()
 
-def get_company_repository(db: Session = Depends(get_db)) -> PostgresCompanyRepository:
+def get_company_repository(db: AsyncSession = Depends(get_db)) -> PostgresCompanyRepository:
     """Dependency Provider for CompanyRepository Port."""
     return PostgresCompanyRepository(session=db)
 

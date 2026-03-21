@@ -146,9 +146,9 @@ class DatabaseSettings(BaseModel):
             return values
 
         if is_fully_atomic:
-            # Construct canonical URL for SQLAlchemy engine initialization.
+            # Construct canonical URL for SQLAlchemy async engine initialization.
             values["url"] = (
-                f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
+                f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{name}"
             )
             return values
 

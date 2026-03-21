@@ -3,7 +3,7 @@ from arq.connections import RedisSettings as ArqRedisSettings
 from prometheus_client import start_http_server
 
 from shared.infrastructure.config import settings
-from shared.infrastructure.database.connection import SessionLocal, engine
+from shared.infrastructure.database.connection import AsyncSessionLocal, engine
 from shared.infrastructure.monitoring.logging import setup_structlog
 from shared.infrastructure.monitoring.tracing import setup_tracing
 from shared.infrastructure.adapters.prometheus_telemetry import PrometheusTelemetryAdapter
@@ -34,7 +34,7 @@ async def startup(ctx):
 
 async def shutdown(ctx):
     """Lifecycle hook: Gracefully releases resources."""
-    engine.dispose()
+    await engine.dispose()
     logger.info("Worker Database engine disposed")
 
 
@@ -42,14 +42,16 @@ async def run_sync_b3_companies(ctx):
     """ARQ Task Hook: Maps the worker execution to the Application DDD Use Case."""
     logger.info("Starting B3 Companies Synchronization task")
     
-    db_session = SessionLocal()
-    
-    use_case = get_sync_b3_companies_use_case(db_session=db_session)
-    
-    try:
-        await use_case.execute()
-    finally:
-        db_session.close()
+    async with AsyncSessionLocal() as db_session:
+        use_case = get_sync_b3_companies_use_case(db_session=db_session)
+        
+        try:
+            await use_case.execute()
+        except Exception as e:
+            logger.error("Sync task failed", error=str(e))
+            raise e
+        finally:
+            await db_session.close()
 
 
 class WorkerConfig:

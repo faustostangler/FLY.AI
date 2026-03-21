@@ -12,7 +12,7 @@ class CompanyRepository(ABC):
     """
 
     @abstractmethod
-    def save(self, company: Company) -> None:
+    async def save(self, company: Company) -> None:
         """Persists a single Company entity.
 
         Used for individual updates or real-time state transitions
@@ -21,7 +21,7 @@ class CompanyRepository(ABC):
         pass
 
     @abstractmethod
-    def save_batch(self, companies: List[Company]) -> None:
+    async def save_batch(self, companies: List[Company]) -> None:
         """Persists multiple Company entities in a single atomic transaction.
 
         Batch operations significantly reduce database round-trips
@@ -30,7 +30,7 @@ class CompanyRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_ticker(self, ticker: str) -> Optional[Company]:
+    async def get_by_ticker(self, ticker: str) -> Optional[Company]:
         """Retrieves a company using its primary market identifier.
 
         Returns:
@@ -39,7 +39,7 @@ class CompanyRepository(ABC):
         pass
 
     @abstractmethod
-    def get_all(self) -> List[Company]:
+    async def get_all(self) -> List[Company]:
         """Returns the complete list of issuers currently in the domain.
 
         Used for full-cache refreshes or analytical exports.

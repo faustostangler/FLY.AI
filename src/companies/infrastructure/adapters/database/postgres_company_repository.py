@@ -1,6 +1,6 @@
 from typing import List, Optional
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
 from companies.domain.entities import Company
@@ -10,21 +10,21 @@ from companies.infrastructure.adapters.database.mapper import CompanyDataMapper
 
 
 class PostgresCompanyRepository(CompanyRepository):
-    """PostgreSQL implementation of the CompanyRepository port.
+    """PostgreSQL implementation of the CompanyRepository port using AsyncSession.
 
     This adapter provides high-performance persistence using native
     PostgreSQL features (UPSERT) while keeping the Domain decoupled from
     relational schemas through the use of Data Mappers.
 
     Attributes:
-        session (Session): An active SQLAlchemy session for transaction management.
+        session (AsyncSession): An active SQLAlchemy async session.
     """
 
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self._session = session
 
-    def save(self, company: Company) -> None:
-        """Persists or updates an issuer using an atomic UPSERT operation.
+    async def save(self, company: Company) -> None:
+        """Persists or updates an issuer using an atomic async UPSERT operation.
 
         Relying on native 'ON CONFLICT' clauses ensures atomicity and
         prevents race conditions during concurrent updates of the same ticker.
@@ -48,11 +48,11 @@ class PostgresCompanyRepository(CompanyRepository):
             set_=update_set,
         )
 
-        self._session.execute(stmt)
-        self._session.commit()
+        await self._session.execute(stmt)
+        await self._session.commit()
 
-    def save_batch(self, companies: List[Company]) -> None:
-        """Executes a bulk UPSERT for a collection of issuers.
+    async def save_batch(self, companies: List[Company]) -> None:
+        """Executes a bulk async UPSERT for a collection of issuers.
 
         During full-market synchronizations, individual inserts are
         prohibitively slow. Native batch UPSERTs reduce I/O wait times
@@ -88,11 +88,11 @@ class PostgresCompanyRepository(CompanyRepository):
 
         stmt = stmt.on_conflict_do_update(index_elements=["ticker"], set_=update_cols)
 
-        self._session.execute(stmt)
-        self._session.commit()
+        await self._session.execute(stmt)
+        await self._session.commit()
 
-    def get_by_ticker(self, ticker: str) -> Optional[Company]:
-        """Retrieves an issuer by its primary symbol.
+    async def get_by_ticker(self, ticker: str) -> Optional[Company]:
+        """Retrieves an issuer by its primary symbol asynchronously.
 
         Args:
             ticker (str): The ticker symbol to search for.
@@ -100,20 +100,22 @@ class PostgresCompanyRepository(CompanyRepository):
         Returns:
             Optional[Company]: A reconstructed domain entity or None.
         """
-        model = (
-            self._session.query(CompanyModel)
-            .filter(CompanyModel.ticker == ticker)
-            .first()
-        )
+        query = select(CompanyModel).filter(CompanyModel.ticker == ticker)
+        result = await self._session.execute(query)
+        model = result.scalars().first()
+        
         return CompanyDataMapper.to_entity(model) if model else None
 
-    def get_all(self) -> List[Company]:
-        """Loads all issuer records from the database.
+    async def get_all(self) -> List[Company]:
+        """Loads all issuer records from the database asynchronously.
 
         Used primarily for populating caches or during full-system audits.
 
         Returns:
             List[Company]: A list of hydrated domain entities.
         """
-        models = self._session.query(CompanyModel).all()
+        query = select(CompanyModel)
+        result = await self._session.execute(query)
+        models = result.scalars().all()
+        
         return [CompanyDataMapper.to_entity(m) for m in models]

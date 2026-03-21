@@ -24,7 +24,8 @@ class SRETelemetryRoute(APIRoute):
             # Extracted matched template (e.g., /api/v1/companies/{ticker}) instead of raw URL
             path = self.path
 
-            request_id = str(uuid.uuid4())
+            # 0. TRACEABILITY: Extract ID from LB (Nginx/Traefik) or generate fallback.
+            request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
             structlog.contextvars.clear_contextvars()
             structlog.contextvars.bind_contextvars(
                 http_method=method,
@@ -89,6 +90,9 @@ class SRETelemetryRoute(APIRoute):
                     metrics.HTTP_REQUESTS_FAILED_TOTAL.labels(
                         method=method, endpoint=path, error_type=status_code
                     ).inc()
+
+                # 6. TRACEABILITY: Ensure the ID is propagated back to the client.
+                response.headers["X-Request-ID"] = request_id
 
                 return response
 

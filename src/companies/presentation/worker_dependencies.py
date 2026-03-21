@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from shared.infrastructure.database.connection import SessionLocal
+from sqlalchemy.ext.asyncio import AsyncSession
+from shared.infrastructure.database.connection import AsyncSessionLocal
 from companies.infrastructure.adapters.database.postgres_company_repository import (
     PostgresCompanyRepository,
 )
@@ -16,7 +16,7 @@ def get_telemetry_port() -> TelemetryPort:
     """Dependency Provider for TelemetryPort"""
     return PrometheusTelemetryAdapter()
 
-def get_company_repository(db: Session) -> PostgresCompanyRepository:
+def get_company_repository(db: AsyncSession) -> PostgresCompanyRepository:
     """Dependency Provider for CompanyRepository Port"""
     return PostgresCompanyRepository(session=db)
 
@@ -27,7 +27,7 @@ def get_b3_data_source(
     return PlaywrightB3DataSource(telemetry=telemetry)
 
 def get_sync_b3_companies_use_case(
-    db_session: Session
+    db_session: AsyncSession
 ) -> SyncB3CompaniesUseCase:
     """Dependency Provider for the heavy Sync Use Case (Worker Only)."""
     telemetry = get_telemetry_port()

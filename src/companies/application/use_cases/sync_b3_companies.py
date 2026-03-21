@@ -172,7 +172,7 @@ class SyncB3CompaniesUseCase:
                     logger.info(
                         f"Persistence: Saving {len(unique_entities)} unique companies."
                     )
-                    self._repository.save_batch(unique_entities)
+                    await self._repository.save_batch(unique_entities)
                     self._telemetry.increment_companies_synced(
                         count=len(unique_entities), status="success"
                     )
