@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional, Tuple
 import structlog
-from companies.domain.entities.company import Company
+from companies.domain.entities import Company
 from companies.application.dtos.b3_company_dto import B3CompanyPayloadDTO
 from shared.domain.ports.telemetry_port import TelemetryPort
 from shared.infrastructure.utils.date_resilient import DateResilientParser

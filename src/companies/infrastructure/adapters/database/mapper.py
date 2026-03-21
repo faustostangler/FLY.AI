@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Any
-from companies.domain.entities.company import Company
-from companies.domain.value_objects.cnpj import CNPJ
+from companies.domain.entities import Company
+from companies.domain.value_objects import CNPJ
 from companies.infrastructure.adapters.database.models import CompanyModel
 
 

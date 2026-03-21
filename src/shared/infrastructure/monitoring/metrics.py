@@ -1,5 +1,6 @@
 import math
 from prometheus_client import Counter, Histogram, Gauge
+
 from shared.infrastructure.config import settings
 
 

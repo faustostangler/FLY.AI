@@ -2,8 +2,8 @@ from typing import Optional, List, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from shared.infrastructure.utils.text import TextCleaner
-from companies.domain.entities.company import Company
-from companies.domain.value_objects.cnpj import CNPJ
+from companies.domain.entities import Company
+from companies.domain.value_objects import CNPJ
 
 
 class B3CompanyPayloadDTO(BaseModel):

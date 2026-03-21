@@ -1,8 +1,9 @@
 import datetime
 from fastapi import APIRouter, Depends
+
 from shared.presentation.api.route_classes import SRETelemetryRoute
 from companies.application.use_cases.trigger_b3_sync import TriggerB3SyncUseCase
-from companies.presentation.api.dependencies import get_trigger_b3_sync_use_case
+from companies.presentation.api.api_dependencies import get_trigger_b3_sync_use_case
 
 router = APIRouter(prefix="/companies", tags=["Companies"], route_class=SRETelemetryRoute)
 

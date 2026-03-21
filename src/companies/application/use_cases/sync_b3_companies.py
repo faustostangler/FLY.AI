@@ -4,7 +4,7 @@ import time
 from typing import Dict, Any, List, cast
 from pydantic import ValidationError
 
-from companies.domain.entities.company import Company
+from companies.domain.entities import Company
 from companies.domain.ports.b3_data_source import B3DataSource
 from companies.domain.ports.company_repository import CompanyRepository
 from companies.domain.exceptions import (

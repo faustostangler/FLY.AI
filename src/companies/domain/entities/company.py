@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 import re
 
-from companies.domain.value_objects.cnpj import CNPJ
+from companies.domain.value_objects import CNPJ
 from companies.domain.exceptions import CompanyValidationError
 
 

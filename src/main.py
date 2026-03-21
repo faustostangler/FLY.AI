@@ -1,3 +1,5 @@
+import structlog
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,9 +9,7 @@ from companies.presentation.api.routes import router as companies_router
 from shared.infrastructure.config import settings
 from shared.infrastructure.database.connection import engine
 from shared.infrastructure.monitoring.tracing import setup_tracing
-
 from shared.infrastructure.monitoring.logging import setup_structlog
-import structlog
 
 # # Bootstraps structlog (12-Factor App)
 # # We use is_local_dev if we want colored output locally.

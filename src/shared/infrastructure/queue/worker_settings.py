@@ -7,11 +7,9 @@ from shared.infrastructure.database.connection import SessionLocal, engine
 from shared.infrastructure.monitoring.logging import setup_structlog
 from shared.infrastructure.monitoring.tracing import setup_tracing
 from shared.infrastructure.adapters.prometheus_telemetry import PrometheusTelemetryAdapter
-from shared.infrastructure.queue.task_names import TaskNames
+from shared.application.constants.task_names import TaskNames
 
-from companies.infrastructure.adapters.database.postgres_company_repository import PostgresCompanyRepository
-from companies.infrastructure.adapters.data_sources.playwright_b3_data_source import PlaywrightB3DataSource
-from companies.application.use_cases.sync_b3_companies import SyncB3CompaniesUseCase
+from companies.presentation.worker_dependencies import get_sync_b3_companies_use_case
 
 logger = structlog.get_logger().bind(bounded_context="worker")
 
@@ -45,15 +43,8 @@ async def run_sync_b3_companies(ctx):
     logger.info("Starting B3 Companies Synchronization task")
     
     db_session = SessionLocal()
-    telemetry = PrometheusTelemetryAdapter()
-    repository = PostgresCompanyRepository(session=db_session)
-    data_source = PlaywrightB3DataSource(telemetry=telemetry)
     
-    use_case = SyncB3CompaniesUseCase(
-        data_source=data_source, 
-        repository=repository, 
-        telemetry=telemetry
-    )
+    use_case = get_sync_b3_companies_use_case(db_session=db_session)
     
     try:
         await use_case.execute()

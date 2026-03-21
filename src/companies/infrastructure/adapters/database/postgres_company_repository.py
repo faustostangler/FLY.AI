@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 
-from companies.domain.entities.company import Company
+from companies.domain.entities import Company
 from companies.domain.ports.company_repository import CompanyRepository
 from companies.infrastructure.adapters.database.models import CompanyModel
 from companies.infrastructure.adapters.database.mapper import CompanyDataMapper

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from companies.domain.entities.company import Company
+from companies.domain.entities import Company
 
 
 class CompanyRepository(ABC):

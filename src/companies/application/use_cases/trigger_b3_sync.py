@@ -3,7 +3,7 @@ import structlog
 
 from shared.domain.ports.job_queue_port import JobQueuePort
 from shared.domain.ports.telemetry_port import TelemetryPort
-from shared.infrastructure.queue.task_names import TaskNames
+from shared.application.constants.task_names import TaskNames
 
 logger = structlog.get_logger().bind(bounded_context="companies")
 
