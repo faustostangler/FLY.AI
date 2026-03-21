@@ -9,14 +9,11 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "playwright>=1.58.0",
     "fastapi>=0.100.0",
-    "psycopg2-binary>=2.9.11",
     "uvicorn[standard]>=0.41.0",
     "pandas>=3.0.1",
-    "numpy>=2.4.3",
     "pydantic-settings>=2.13.1",
     "unidecode>=1.4.0",
     "prometheus-client>=0.24.1",
-    "pact-python>=3.2.1",
     "opentelemetry-api>=1.40.0",
     "opentelemetry-sdk>=1.40.0",
     "opentelemetry-exporter-otlp>=1.40.0",
@@ -24,9 +21,9 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.61b0",
     "opentelemetry-instrumentation-httpx>=0.61b0",
     "structlog>=25.5.0",
-    "colorama>=0.4.6",
     "arq>=0.27.0",
     "redis>=5.3.1",
+    "asyncpg>=0.31.0",
 ]
 
 [project.optional-dependencies]
@@ -64,6 +61,7 @@ pythonpath = [
 dev = [
     "httpx>=0.28.1",
     "mutmut>=3.5.0",
+    "pact-python>=3.2.1",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=6.0.0",
 ]
