@@ -7,8 +7,9 @@ from companies.application.use_cases.sync_b3_companies import SyncB3CompaniesUse
 class TestSyncB3CompaniesUseCase:
     @pytest.fixture
     def use_case(self):
+        from unittest.mock import AsyncMock
         data_source = MagicMock()
-        repository = MagicMock()
+        repository = AsyncMock()
         telemetry = MagicMock()
         return SyncB3CompaniesUseCase(data_source, repository, telemetry)
 
@@ -23,43 +24,43 @@ class TestSyncB3CompaniesUseCase:
             B3NetworkTimeoutError,
         )
         from unittest.mock import AsyncMock, patch
+        from shared.domain.utils.result import Result
 
         reporter = ProgressReporter(total=1)
-        sem = asyncio.Semaphore(1)
 
         # 1. Missing ticker/cvm -> DataValidation Error
         res_missing = await use_case._process_single_company(
-            0, {"issuingCompany": ""}, sem, reporter
+            0, {"issuingCompany": ""}, reporter
         )
         assert res_missing.is_failure
         assert isinstance(res_missing.error, CompanyDataValidationError)
 
         # 2. Rate Limit Exceeded
         use_case._data_source.fetch_company_details = AsyncMock(
-            side_effect=B3RateLimitExceededError("Limit")
+            return_value=Result.fail(B3RateLimitExceededError("Limit"))
         )
         res_limit = await use_case._process_single_company(
-            0, {"issuingCompany": "PETR4", "codeCVM": "9512"}, sem, reporter
+            0, {"issuingCompany": "PETR4", "codeCVM": "9512"}, reporter
         )
         assert res_limit.is_failure
         assert isinstance(res_limit.error, B3RateLimitExceededError)
 
         # 3. Timeout
         use_case._data_source.fetch_company_details = AsyncMock(
-            side_effect=asyncio.TimeoutError()
+            return_value=Result.fail(asyncio.TimeoutError())
         )
         res_timeout = await use_case._process_single_company(
-            0, {"issuingCompany": "VALE3", "codeCVM": "4170"}, sem, reporter
+            0, {"issuingCompany": "VALE3", "codeCVM": "4170"}, reporter
         )
         assert res_timeout.is_failure
         assert isinstance(res_timeout.error, B3NetworkTimeoutError)
 
         # 4. Generic Exception
         use_case._data_source.fetch_company_details = AsyncMock(
-            side_effect=Exception("Generic Error")
+            return_value=Result.fail(Exception("Generic Error"))
         )
         res_generic = await use_case._process_single_company(
-            0, {"issuingCompany": "ITUB4", "codeCVM": "19348"}, sem, reporter
+            0, {"issuingCompany": "ITUB4", "codeCVM": "19348"}, reporter
         )
         assert res_generic.is_failure
         assert isinstance(res_generic.error, Exception)
@@ -67,45 +68,32 @@ class TestSyncB3CompaniesUseCase:
 
         # 5. Domain logic validation error (from Mapper)
         use_case._data_source.fetch_company_details = AsyncMock(
-            return_value={"details": "dummy"}
+            return_value=Result.ok({"details": "dummy"})
         )
         with patch("companies.application.use_cases.sync_b3_companies.B3CompanyMapper.to_domain") as mock_mapper:
-            mock_mapper.side_effect = CompanyValidationError("Domain Logic Fail", "ticker")
+            mock_mapper.return_value = Result.fail(CompanyValidationError("Domain Logic Fail", "ticker"))
             res_domain = await use_case._process_single_company(
-                0, {"issuingCompany": "WEGE3", "codeCVM": "123"}, sem, reporter
+                0, {"issuingCompany": "WEGE3", "codeCVM": "123"}, reporter
             )
             assert res_domain.is_failure
             assert isinstance(res_domain.error, CompanyValidationError)
 
         # 6. Pydantic ValidationError (from Mapper)
-        from pydantic import ValidationError
-        
-        # Helper to get a real ValidationError
-        def raise_val_error():
-            from companies.application.dtos.b3_company_dto import B3CompanyPayloadDTO
-            B3CompanyPayloadDTO() # missing fields
-
-        validation_error = None
-        try:
-            raise_val_error()
-        except ValidationError as e:
-            validation_error = e
-
         with patch("companies.application.use_cases.sync_b3_companies.B3CompanyMapper.to_domain") as mock_mapper:
-            mock_mapper.side_effect = validation_error
+            mock_mapper.return_value = Result.fail(CompanyDataValidationError("DTO Fail", "multiple", "B3SA3"))
             res_pydantic = await use_case._process_single_company(
-                0, {"issuingCompany": "B3SA3", "codeCVM": "1234"}, sem, reporter
+                0, {"issuingCompany": "B3SA3", "codeCVM": "1234"}, reporter
             )
             assert res_pydantic.is_failure
             assert isinstance(res_pydantic.error, CompanyDataValidationError)
-            assert res_pydantic.error.field == "multiple"
+            assert res_pydantic.error.details["field"] == "multiple"
 
         # 7. Happy path
         company_mock = MagicMock()
         company_mock.ticker = "BBAS3"
-        with patch("companies.application.use_cases.sync_b3_companies.B3CompanyMapper.to_domain", return_value=company_mock):
+        with patch("companies.application.use_cases.sync_b3_companies.B3CompanyMapper.to_domain", return_value=Result.ok(company_mock)):
             res_success = await use_case._process_single_company(
-                0, {"issuingCompany": "BBAS3", "codeCVM": "789"}, sem, reporter
+                0, {"issuingCompany": "BBAS3", "codeCVM": "789"}, reporter
             )
             assert res_success.is_success
             assert res_success.value == company_mock
@@ -128,14 +116,14 @@ class TestSyncB3CompaniesUseCase:
 
         # Fetch initial will return items covering all telemetry paths
         use_case._data_source.fetch_initial_companies = AsyncMock(
-            return_value=[
+            return_value=Result.ok([
                 {"issuingCompany": "PETR4", "codeCVM": "9512"},
                 {"issuingCompany": "VALE3", "codeCVM": "4170"},
                 {"issuingCompany": "ITUB4", "codeCVM": "123"},
                 {"issuingCompany": "WEGE3", "codeCVM": "456"},
                 {"issuingCompany": "ABEV3", "codeCVM": "789"},
                 {"issuingCompany": "B3SA3", "codeCVM": "000"},
-            ]
+            ])
         )
 
         class DummyCompany:
@@ -144,7 +132,7 @@ class TestSyncB3CompaniesUseCase:
 
         c1 = DummyCompany("PETR4")
 
-        async def mock_process(index, raw, sem, reporter):
+        async def mock_process(index, raw, reporter):
             t = raw.get("issuingCompany")
             if t == "PETR4":
                 return Result.ok(c1)
@@ -160,6 +148,7 @@ class TestSyncB3CompaniesUseCase:
                 return Result.fail(Exception("Generic"))
 
         use_case._process_single_company = mock_process
+        use_case._repository.save_batch = AsyncMock()
 
         await use_case.execute()
 
@@ -192,3 +181,4 @@ class TestSyncB3CompaniesUseCase:
         use_case._telemetry.increment_companies_synced.assert_any_call(
             count=5, status="failed"
         )
+

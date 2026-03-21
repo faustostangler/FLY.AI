@@ -4,11 +4,13 @@ from typing import Optional, List
 import re
 
 from companies.domain.value_objects import CNPJ
-from companies.domain.exceptions import CompanyValidationError
+from companies.domain.exceptions import CompanyValidationError, CompanyDomainError
+from shared.domain.utils.result import Result
 
 
 @dataclass(kw_only=True)
 class Company:
+    # ... (existing attributes)
     """Rich Domain Entity representing a publicly traded Issuer.
 
     This is the Aggregate Root for the 'Issuers' bounded context. It
@@ -68,31 +70,43 @@ class Company:
     has_emissions: Optional[bool] = None
     has_bdr: Optional[bool] = None
 
+    # --- Monadic Entry Point (Factory) ---
+
+    @classmethod
+    def create(cls, **kwargs) -> Result["Company", CompanyDomainError]:
+        """Managed creation of the Aggregate Root with full validation."""
+        ticker = kwargs.get("ticker", "")
+        cvm_code = kwargs.get("cvm_code", "")
+
+        # 1. Validation Logic (Previously in __post_init__)
+        if not re.match(r"^[A-Z0-9]{2,12}$", ticker):
+            return Result.fail(
+                CompanyValidationError(
+                    f"Ticker '{ticker}' must be 2-12 alphanumeric characters."
+                )
+            )
+
+        if not str(cvm_code).isdigit():
+            return Result.fail(
+                CompanyValidationError(
+                    f"CVM code must contain only digits, got '{cvm_code}'."
+                )
+            )
+
+        # 2. Instantiation (Now safe to call)
+        try:
+            return Result.ok(cls(**kwargs))
+        except Exception as e:
+            return Result.fail(
+                CompanyValidationError(f"Unexpected instantiation error: {e}")
+            )
+
     def __post_init__(self):
-        """Enforces Domain Invariants upon creation.
-
-        Following the 'Always-Valid' entity pattern prevents the
-        instantiation of companies with corrupt or logically impossible
-        identification codes.
-        """
-        self._validate_cvm_code()
-        self._validate_ticker()
-
-    def _validate_cvm_code(self):
-        """Ensures the CVM code conforms to the regulatory numeric format."""
-        if not self.cvm_code.isdigit():
-            raise CompanyValidationError(
-                f"CVM code must contain only digits, got '{self.cvm_code}'."
-            )
-
-    def _validate_ticker(self):
-        """Enforces the standard B3 symbol formatting rules."""
-        # Symbols must be alphanumeric and follow length constraints
-        # to avoid ingestion of garbage data from scrapper noise.
-        if not re.match(r"^[A-Z0-9]{2,12}$", self.ticker):
-            raise CompanyValidationError(
-                f"Ticker '{self.ticker}' must be 2-12 alphanumeric characters."
-            )
+        """Domain entity lifecycle initialization."""
+        if self.ticker_codes is None:
+            self.ticker_codes = []
+        if self.isin_codes is None:
+            self.isin_codes = []
 
     # --- Domain Behavior (State Transitions) ---
 

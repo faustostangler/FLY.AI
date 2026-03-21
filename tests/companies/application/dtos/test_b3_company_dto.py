@@ -26,6 +26,9 @@ def test_dto_sanitization_and_resilience():
     assert dto.registrar == "BANCO DO BRASIL"
 
 
+from shared.domain.utils.result import Result
+
+
 def test_dto_to_domain_conversion():
     raw_data = {
         "ticker": "PETR4",
@@ -35,8 +38,11 @@ def test_dto_to_domain_conversion():
     }
 
     dto = B3CompanyPayloadDTO(**raw_data)
-    company = dto.to_domain()
+    result = dto.to_domain()
 
+    assert isinstance(result, Result)
+    assert result.is_success
+    company = result.unwrap()
     assert isinstance(company, Company)
     assert company.ticker == "PETR4"
     assert isinstance(company.cnpj, CNPJ)

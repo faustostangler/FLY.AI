@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock
 from companies.application.mappers.b3_mapper import B3CompanyMapper
+from shared.domain.utils.result import Result
 
 
 class TestB3CompanyMapper:
@@ -31,7 +32,8 @@ class TestB3CompanyMapper:
         }
 
         # Act
-        company = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        result = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        company = result.unwrap()
 
         # Assert
         assert company.ticker == "PETR4"
@@ -53,7 +55,8 @@ class TestB3CompanyMapper:
         detailed_info = {"industryClassification": "Setor Unico", "otherCodes": []}
 
         # Act
-        company = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        result = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        company = result.unwrap()
 
         # Assert
         assert company.sector == "SETOR UNICO"
@@ -66,7 +69,8 @@ class TestB3CompanyMapper:
         detailed_info = {"otherCodes": None}
 
         # Act
-        company = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        result = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        company = result.unwrap()
 
         # Assert
         assert company.ticker_codes == []
@@ -92,7 +96,8 @@ class TestB3CompanyMapper:
         }
 
         # Act
-        company = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        result = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        company = result.unwrap()
 
         # Assert
         assert company.date_listing == datetime(1943, 10, 25)
@@ -114,7 +119,8 @@ class TestB3CompanyMapper:
         }
 
         # Act
-        company = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        result = B3CompanyMapper.to_domain(basic_info, detailed_info, telemetry)
+        company = result.unwrap()
 
         # Assert
         assert company.ticker == "BTC1"

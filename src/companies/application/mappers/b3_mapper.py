@@ -1,9 +1,17 @@
 from typing import Dict, Any, List, Optional, Tuple
 import structlog
+from pydantic import ValidationError
 from companies.domain.entities import Company
+from companies.domain.exceptions import (
+    CompanyValidationError,
+    CompanyDomainError,
+    CompanySyncError,
+)
 from companies.application.dtos.b3_company_dto import B3CompanyPayloadDTO
+from shared.domain.errors import DomainError
 from shared.domain.ports.telemetry_port import TelemetryPort
 from shared.infrastructure.utils.date_resilient import DateResilientParser
+from shared.domain.utils.result import Result
 
 logger = structlog.get_logger().bind(bounded_context="companies")
 
@@ -21,16 +29,11 @@ class B3CompanyMapper:
         basic_info: Dict[str, Any], 
         detailed_info: Dict[str, Any],
         telemetry: TelemetryPort
-    ) -> Company:
-        """Transforms raw B3 payloads into a Domain Entity.
+    ) -> Result[Company, CompanyDomainError]:
+        """Transforms raw B3 payloads into a Domain Entity via Result Monad.
         
-        Args:
-            basic_info: Summary data from the initial listing.
-            detailed_info: Granular metadata from the detail API.
-            telemetry: Telemetry port for tracking parsing anomalies.
-            
-        Returns:
-            Company: A hydrated and validated Domain Entity.
+        This method acts as the primary liminal space for the Anti-Corruption Layer,
+        converting potential DTO validation errors into clean Result.fail outcomes.
         """
         # 1. Process Industry Classification (Sector / Subsector / Segment)
         sector, subsector, segment = B3CompanyMapper._parse_industry_classification(
@@ -87,8 +90,23 @@ class B3CompanyMapper:
             "has_bdr": detailed_info.get("hasBDR", detailed_info.get("has_bdr")),
         }
 
-        dto = B3CompanyPayloadDTO(**payload_data)
-        return dto.to_domain()
+        try:
+            dto = B3CompanyPayloadDTO(**payload_data)
+            return dto.to_domain()
+        except ValidationError as e:
+            ticker = payload_data.get("ticker", "UNKNOWN")
+            return Result.fail(
+                CompanyValidationError(
+                    f"DTO Validation failed: {e}", "multiple", ticker
+                )
+            )
+        except Exception as e:
+            return Result.fail(
+                CompanySyncError(
+                    message=f"Unexpected error in Mapper: {str(e)}",
+                    code="MAPPER_UNEXPECTED_ERROR"
+                )
+            )
 
     @staticmethod
     def _parse_industry_classification(industry_raw: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:

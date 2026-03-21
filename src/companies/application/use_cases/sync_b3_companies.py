@@ -12,12 +12,15 @@ from companies.domain.exceptions import (
     CompanyDataValidationError,
     B3RateLimitExceededError,
     B3NetworkTimeoutError,
+    CompanySyncError,
 )
+from shared.domain.errors import DomainError
 from companies.application.mappers.b3_mapper import B3CompanyMapper
 from shared.infrastructure.config import settings
 from shared.domain.ports.telemetry_port import TelemetryPort
 from shared.infrastructure.progress import ProgressReporter
 from shared.domain.utils.result import Result
+from shared.domain.errors import DomainError
 
 logger = structlog.get_logger().bind(bounded_context="companies")
 
@@ -47,13 +50,35 @@ class SyncB3CompaniesUseCase:
         self._repository = repository
         self._telemetry = telemetry
 
+    async def _worker(
+        self,
+        queue: asyncio.Queue,
+        results: List[Result[Company, Exception]],
+        reporter: ProgressReporter,
+    ) -> None:
+        """Worker loop to consume tasks from the queue."""
+        while True:
+            task = await queue.get()
+            try:
+                if task is None:
+                    break
+
+                index, raw_company = task
+                result = await self._process_single_company(index, raw_company, reporter)
+                results.append(result)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.exception("Unexpected error in worker loop", error=str(e))
+            finally:
+                queue.task_done()
+
     async def _process_single_company(
         self,
         index: int,
         raw_company: Dict[str, Any],
-        semaphore: asyncio.Semaphore,
         reporter: ProgressReporter,
-    ) -> Result[Company, Exception]:
+    ) -> Result[Company, DomainError]: # Changed from Exception to DomainError
         """Helper to process a single company using Result Monad."""
         ticker = raw_company.get("issuingCompany")
         cvm_code = str(raw_company.get("codeCVM"))
@@ -65,37 +90,41 @@ class SyncB3CompaniesUseCase:
                 )
             )
 
-        async with semaphore:
-            try:
-                # 1. Infrastructure: Detail fetch
-                details = await self._data_source.fetch_company_details(cvm_code)
-
-                # 2. Application: Mapping & Validation (ACL Mapper -> Entity)
-                entity = B3CompanyMapper.to_domain(
-                    raw_company, details, self._telemetry
-                )
-
-                logger.debug(reporter.get_formatted_progress(index, [ticker]))
-                return Result.ok(entity)
-            except ValidationError as e:
-                return Result.fail(
-                    CompanyDataValidationError(
-                        f"DTO Validation failed: {e}", "multiple", ticker
+        try:
+            # 1. Infrastructure: Detail fetch
+            res_details = await self._data_source.fetch_company_details(cvm_code)
+            if res_details.is_failure:
+                # Map infrastructure-specific errors to Domain Errors
+                if isinstance(res_details.error, (asyncio.TimeoutError, TimeoutError)):
+                    return Result.fail(
+                        B3NetworkTimeoutError(
+                            f"Timeout fetching details for {ticker} ({cvm_code})"
+                        )
                     )
+                return Result.fail(res_details.error)
+            
+            details = res_details.value
+
+            # 2. Application/Domain: Mapping & Validation (ACL Mapper -> Entity)
+            # The Mapper now handles business validation and returns Result.
+            return B3CompanyMapper.to_domain(
+                raw_company, details, self._telemetry
+            )
+
+        except (asyncio.TimeoutError, TimeoutError):
+            return Result.fail(
+                B3NetworkTimeoutError(
+                    f"Timeout fetching details for {ticker} ({cvm_code})"
                 )
-            except CompanyValidationError as e:
-                return Result.fail(e)
-            except B3RateLimitExceededError as e:
-                return Result.fail(e)
-            except (asyncio.TimeoutError, TimeoutError):
-                return Result.fail(
-                    B3NetworkTimeoutError(
-                        f"Timeout fetching details for {ticker} ({cvm_code})"
-                    )
+            )
+        except Exception as e:
+            # Catch-all for unexpected infrastructure level errors
+            return Result.fail(
+                CompanySyncError(
+                    message=f"Unexpected error fetching details for {ticker} ({cvm_code}): {str(e)}",
+                    code="INFRASTRUCTURE_ERROR"
                 )
-            except Exception as e:
-                # Catch-all for unexpected infrastructure level errors
-                return Result.fail(e)
+            )
 
     async def execute(self) -> None:
         """Executes the complete synchronization workflow.
@@ -103,7 +132,7 @@ class SyncB3CompaniesUseCase:
         Nested Logical Steps:
             1. Saturation tracking: Increment active task gauge.
             2. Data Discovery: Fetch the initial issuer list.
-            3. Concurrency Orchestration: Execute detail probes via semaphore.
+            3. Worker Pool Orchestration: Execute detail probes via asyncio.Queue.
             4. Error Taxonomy: Categorize failures for proactive alerting.
             5. Persistence: Commit valid entities to the repository in bulk.
         """
@@ -116,36 +145,60 @@ class SyncB3CompaniesUseCase:
         try:
             async with self._data_source:
                 # Fetch the raw initial list
-                initial_companies = await self._data_source.fetch_initial_companies()
+                initial_res = await self._data_source.fetch_initial_companies()
+                if initial_res.is_failure:
+                    logger.error("Failed to fetch initial companies", error=str(initial_res.error))
+                    return
 
-                semaphore = asyncio.Semaphore(settings.app.max_concurrency)
-                reporter = ProgressReporter(total=len(initial_companies))
+                initial_companies = initial_res.value
+                total_companies = len(initial_companies)
+                
+                if not initial_companies:
+                    logger.info("No companies found to synchronize.")
+                    return
 
-                # Execute all tasks concurrently
-                tasks = [
-                    self._process_single_company(i, raw, semaphore, reporter)
-                    for i, raw in enumerate(initial_companies)
+                # 2. ORCHESTRATION: Worker Pool with asyncio.Queue
+                # maxsize provides backpressure to the producer
+                queue: asyncio.Queue = asyncio.Queue(maxsize=settings.app.max_concurrency * 2)
+                results: List[Result[Company, Exception]] = []
+                reporter = ProgressReporter(total=total_companies)
+
+                # Initialize fixed-size worker pool
+                num_workers = min(settings.app.max_concurrency, total_companies)
+                workers = [
+                    asyncio.create_task(self._worker(queue, results, reporter))
+                    for _ in range(num_workers)
                 ]
-                results = await asyncio.gather(*tasks)
+
+                # Producer: Feed the queue
+                for i, raw in enumerate(initial_companies):
+                    await queue.put((i, raw))
+
+                # Wait for all tasks to be processed
+                await queue.join()
+
+                # Stop workers gracefully
+                for _ in range(num_workers):
+                    await queue.put(None)
+                await asyncio.gather(*workers)
 
                 # Unpack Monad
                 success_list: List[Company] = []
-                failure_list: List[Exception] = []
+                failure_list: List[DomainError] = []
 
                 for r in results:
                     if r.is_success and r.value:
                         success_list.append(r.value)
                     elif r.is_failure and r.error:
+                        # We know these are now DomainError or Exception
                         failure_list.append(r.error)
 
-                # 2. SRE: Telemetry for Errors (Taxonomy-driven)
+                # 3. SRE: Telemetry for Errors (Taxonomy-driven)
                 for error in failure_list:
                     if isinstance(error, CompanyDataValidationError):
-                        # Use cast to help Pyre identify the attributes
-                        val_error = cast(CompanyDataValidationError, error)
                         self._telemetry.increment_data_validation_error(
                             entity="Company",
-                            field=val_error.field,
+                            field=error.details.get("field", "unknown") if error.details else "unknown",
                             reason="b3_payload_mismatch",
                         )
                     elif isinstance(error, CompanyValidationError):
@@ -165,7 +218,7 @@ class SyncB3CompaniesUseCase:
                             type=error.__class__.__name__
                         )
 
-                # 3. Persistence & Outcome Telemetry
+                # 4. Persistence & Outcome Telemetry
                 if success_list:
                     # Deduplicate by ticker
                     unique_entities = list({e.ticker: e for e in success_list}.values())

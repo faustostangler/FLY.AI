@@ -1,8 +1,16 @@
-from typing import Generic, TypeVar, Optional
+from typing import Generic, TypeVar, Optional, Any, Union
 from dataclasses import dataclass
 
 T = TypeVar("T")
-E = TypeVar("E", bound=Exception)
+# E is now unbound, allowing for DomainError dataclasses or any other type
+E = TypeVar("E")
+
+
+class UnwrapError(Exception):
+    """Raised when trying to unwrap a failure Result."""
+    def __init__(self, error: Any):
+        self.error = error
+        super().__init__(f"Attempted to unwrap a failure Result: {error}")
 
 
 @dataclass(frozen=True)
@@ -36,7 +44,12 @@ class Result(Generic[T, E]):
         return self.error is not None
 
     def unwrap(self) -> T:
-        """Returns the value if success, otherwise raises the error."""
+        """
+        Returns the value if success, otherwise raises an UnwrapError.
+        Use sparingly in tests or top-level crash-handlers.
+        """
         if self.is_failure:
-            raise self.error  # type: ignore
+            if isinstance(self.error, Exception):
+                raise self.error
+            raise UnwrapError(self.error)
         return self.value  # type: ignore

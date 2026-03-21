@@ -1,15 +1,11 @@
-import pytest
+from shared.domain.utils.result import Result
 from companies.domain.entities.company import Company
 from companies.domain.exceptions import CompanyValidationError
+from companies.domain.value_objects.cnpj import CNPJ
 
 
 def test_company_creation_success():
-    # Note: CNPJ must be passed as a CNPJ object or wait...
-    # the repository used CNPJ(model.cnpj).
-    # In the entity, we use Optional[CNPJ]
-    from companies.domain.value_objects.cnpj import CNPJ
-
-    company = Company(
+    result = Company.create(
         ticker="PETR4",
         cvm_code="9512",
         company_name="PETROLEO BRASILEIRO SA PETROBRAS",
@@ -19,27 +15,37 @@ def test_company_creation_success():
         subsector="PETROLEO GAS E BIOCOMBUSTIVEIS",
         cnpj=CNPJ("33000167000101"),
     )
+    
+    assert isinstance(result, Result)
+    assert result.is_success
+    company = result.unwrap()
     assert company.ticker == "PETR4"
     assert company.cvm_code == "9512"
     assert company.cnpj.root == "33000167000101"
 
 
 def test_company_invalid_ticker():
-    with pytest.raises(CompanyValidationError):
-        Company(
-            ticker="P",  # Too short (Domain rule: 2-12)
-            cvm_code="9512",
-            company_name="PETROLEO BRASILEIRO SA",
-        )
+    result = Company.create(
+        ticker="P",  # Too short (Domain rule: 2-12)
+        cvm_code="9512",
+        company_name="PETROLEO BRASILEIRO SA",
+    )
+    
+    assert result.is_failure
+    assert isinstance(result.error, CompanyValidationError)
+    assert "ticker" in str(result.error).lower()
 
 
 def test_company_invalid_cvm_code():
-    with pytest.raises(CompanyValidationError):
-        Company(
-            ticker="PETR4",
-            cvm_code="abc",  # Must be digits
-            company_name="PETROBRAS",
-        )
+    result = Company.create(
+        ticker="PETR4",
+        cvm_code="abc",  # Must be digits
+        company_name="PETROBRAS",
+    )
+    
+    assert result.is_failure
+    assert isinstance(result.error, CompanyValidationError)
+    assert "cvm code" in str(result.error).lower()
 
 
 def test_company_behavior_mark_as_delisted():

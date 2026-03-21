@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from shared.infrastructure.utils.text import TextCleaner
 from companies.domain.entities import Company
 from companies.domain.value_objects import CNPJ
+from shared.domain.utils.result import Result
 
 
 class B3CompanyPayloadDTO(BaseModel):
@@ -93,16 +94,14 @@ class B3CompanyPayloadDTO(BaseModel):
             return bool(v)
         return None
 
-    def to_domain(self) -> Company:
-        """Translates the sanitized DTO into a pure Domain Entity."""
+    def to_domain(self) -> Result[Company, Exception]:
+        """Translates the sanitized DTO into a pure Domain Entity via Result Monad."""
         data = self.model_dump()
 
-        # Instantiate Value Objects
-        cnpj_val = data.pop("cnpj", None)
-        if cnpj_val:
-            # Note: CNPJ validator will run during instantiation if it's a RootModel
-            data["cnpj"] = CNPJ(cnpj_val)
-        else:
-            data["cnpj"] = None
-
-        return Company(**data)
+        # Instantiate Value Objects and handle potential domain errors
+        try:
+            cnpj_val = data.pop("cnpj", None)
+            data["cnpj"] = CNPJ(cnpj_val) if cnpj_val else None
+            return Company.create(**data)
+        except Exception as e:
+            return Result.fail(e)

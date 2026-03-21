@@ -3,19 +3,14 @@ import json
 import base64
 from playwright.async_api import async_playwright
 from companies.domain.ports.b3_data_source import B3DataSource
-from companies.domain.exceptions import B3RateLimitExceededError
+from companies.domain.exceptions import B3RateLimitExceededError, B3NetworkTimeoutError
 from shared.infrastructure.config import settings
 from shared.domain.ports.telemetry_port import TelemetryPort
+from shared.domain.utils.result import Result
 
 
 class PlaywrightB3DataSource(B3DataSource):
-    """B3 Data Source implemented using Playwright.
-
-    B3's modern listing APIs often require session cookies and
-    browser-like behavior (WAF) to prevent simple HTTP clients from scraping.
-    By using Playwright, we simulate a legitimate user session, ensuring
-    higher reliability for the synchronization process.
-    """
+    """B3 Data Source implemented using Playwright with Result Monad."""
 
     def __init__(self, telemetry: TelemetryPort, headless: Optional[bool] = None):
         self._telemetry = telemetry
@@ -29,12 +24,6 @@ class PlaywrightB3DataSource(B3DataSource):
         self._context = None
 
     async def __aenter__(self):
-        """Initializes a shared browser context for efficient multi-fetching.
-
-        Launching a browser for every request is prohibitively expensive.
-        Using a context manager allows the Use Case to batch-process issuers
-        using a single, high-performance execution environment.
-        """
         if not self._playwright:
             self._playwright = await async_playwright().start()
             self._browser = await self._playwright.chromium.launch(
@@ -43,14 +32,12 @@ class PlaywrightB3DataSource(B3DataSource):
             self._context = await self._browser.new_context(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
-            # Hit the homepage once to establish session cookies and clear basic WAF gates.
             page = await self._context.new_page()
             await page.goto(self.homepage_url, wait_until="networkidle")
             await page.close()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Ensures complete cleanup of browser processes to prevent memory leaks."""
         if self._browser:
             await self._browser.close()
         if self._playwright:
@@ -60,24 +47,12 @@ class PlaywrightB3DataSource(B3DataSource):
         self._context = None
 
     def _create_token(self, payload: dict) -> str:
-        """Generates the Base64-encoded token required by B3 API endpoints.
-
-        B3 uses a transparent Base64 JSON payload as a URL parameter
-        rather than standard query strings or POST bodies.
-        """
         json_str = json.dumps(payload)
         return base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
 
     async def _get_context(self):
-        """Secures an active browser context for API interaction.
-
-        Supports both managed sessions (via __aenter__) and one-off
-        calls (used primarily in legacy tests or simple CLI tools).
-        """
         if self._context:
-            return self._context, False  # (context, is_temporary_marker)
-
-        # Fallback for unmanaged sessions: create a temporary browser instance.
+            return self._context, False
         p = await async_playwright().start()
         b = await p.chromium.launch(headless=self.headless)
         c = await b.new_context(
@@ -85,15 +60,7 @@ class PlaywrightB3DataSource(B3DataSource):
         )
         return c, True
 
-    async def fetch_initial_companies(self) -> List[Dict[str, Any]]:
-        """Retrieves the full list of companies currently listed on B3.
-
-        Returns:
-            List[Dict[str, Any]]: Raw records from the discovery endpoint.
-
-        Raises:
-            B3RateLimitExceededError: If the 429 quota is reached.
-        """
+    async def fetch_initial_companies(self) -> Result[List[Dict[str, Any]], Exception]:
         all_companies = []
         context, is_temp = await self._get_context()
 
@@ -103,7 +70,6 @@ class PlaywrightB3DataSource(B3DataSource):
                 await page.goto(self.homepage_url, wait_until="networkidle")
                 await page.close()
 
-            # B3 uses specific pagination logic where -1 often triggers 'all' or 'first page'.
             page_num = -1
             total_pages = -1
 
@@ -122,14 +88,10 @@ class PlaywrightB3DataSource(B3DataSource):
 
                 if response.status == 429:
                     self._telemetry.increment_b3_rate_limit_hits()
-                    raise B3RateLimitExceededError(
-                        f"Rate limited by B3 (429) on initial fetch. Payload: {payload}"
-                    )
+                    return Result.fail(B3RateLimitExceededError(f"Rate limited (429) at page {page_num}"))
 
                 if not response.ok:
-                    raise Exception(
-                        f"Failed to fetch initial companies page {page_num}: {response.status}"
-                    )
+                    return Result.fail(Exception(f"Failed to fetch initial companies page {page_num}: {response.status}"))
 
                 body = await response.body()
                 self._telemetry.increment_network_transmit_bytes(
@@ -137,24 +99,22 @@ class PlaywrightB3DataSource(B3DataSource):
                 )
 
                 data = json.loads(body)
-                if page_num == 1:
-                    total_pages = data.get("page", {}).get("totalPages", 1)
-
+                if page_num == -1: # B3 initial page often returns total
+                     page_num = 1
+                     total_pages = data.get("page", {}).get("totalPages", 1)
+                
                 companies = data.get("results", [])
                 all_companies.extend(companies)
                 page_num += 1
+            
+            return Result.ok(all_companies)
+        except Exception as e:
+            return Result.fail(e)
         finally:
             if is_temp:
                 await context.browser.close()
 
-        return all_companies
-
-    async def fetch_company_details(self, cvm_code: str) -> Dict[str, Any]:
-        """Fetches granular metadata for a specific issuer by its CVM code.
-
-        This endpoint provides deeper attributes like industry classification
-        and CNPJ that are missing from the initial summary list.
-        """
+    async def fetch_company_details(self, cvm_code: str) -> Result[Dict[str, Any], Exception]:
         endpoint_base = settings.b3.detail_api
         payload = {"codeCVM": str(cvm_code), "language": "pt-br"}
         token = self._create_token(payload)
@@ -171,31 +131,24 @@ class PlaywrightB3DataSource(B3DataSource):
 
             if response.status == 429:
                 self._telemetry.increment_b3_rate_limit_hits()
-                raise B3RateLimitExceededError(
-                    f"Rate limited by B3 (429) on details fetch for {cvm_code}."
-                )
+                return Result.fail(B3RateLimitExceededError(f"Rate limited by B3 (429) for {cvm_code}."))
 
             if not response.ok:
-                raise Exception(
-                    f"Failed to fetch details for {cvm_code}: {response.status}"
-                )
+                return Result.fail(Exception(f"Failed to fetch details for {cvm_code}: {response.status}"))
 
             body = await response.body()
             self._telemetry.increment_network_transmit_bytes(
                 direction="inbound", context="b3_detail", payload_size=len(body)
             )
 
-            return json.loads(body)
+            return Result.ok(json.loads(body))
+        except Exception as e:
+            return Result.fail(e)
         finally:
             if is_temp:
                 await context.browser.close()
 
-    async def fetch_company_financials(self, cvm_code: str) -> Dict[str, Any]:
-        """Fetches the latest financial indicators for an issuer.
-
-        Enables data quality checks on the financial health of the issuer
-        during the domain synchronization cycle.
-        """
+    async def fetch_company_financials(self, cvm_code: str) -> Result[Dict[str, Any], Exception]:
         endpoint_base = settings.b3.financial_api
         payload = {"codeCVM": str(cvm_code), "language": "pt-br"}
         token = self._create_token(payload)
@@ -210,8 +163,10 @@ class PlaywrightB3DataSource(B3DataSource):
                 },
             )
             if not response.ok:
-                raise Exception(f"Failed to fetch financials for {cvm_code}")
-            return await response.json()
+                return Result.fail(Exception(f"Failed to fetch financials for {cvm_code}"))
+            return Result.ok(await response.json())
+        except Exception as e:
+            return Result.fail(e)
         finally:
             if is_temp:
                 await context.browser.close()
